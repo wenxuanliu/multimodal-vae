@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
@@ -48,7 +49,7 @@ class MultimodalVAE(nn.Module):
         pi = self.mixture_model()
         ix = torch.multinomial(pi, 1)
         # sample from sampled gaussian
-        z = self.reparametrize(mu[ix], logvar[ix])
+        z = self.reparametrize(mu[ix].squeeze(0), logvar[ix].squeeze(0))
 
         # reconstruct inputs based on that gaussian
         image_recon = self.decoder_image(z)
@@ -94,7 +95,7 @@ class TextEncoder(nn.Module):
         return self.fc21(h), self.fc22(h)
 
 
-def TextDecoder(nn.Module):
+class TextDecoder(nn.Module):
     """Project back into 10 dimensions and use softmax 
     to pick the word."""
     def __init__(self):
@@ -107,13 +108,13 @@ def TextDecoder(nn.Module):
         return F.log_softmax(self.fc4(h))
 
 
-def GaussianMixture(nn.Module):
+class GaussianMixture(nn.Module):
     """Given a (mu, std) for images, and a (mu, std) for text,
     model the joint as a simple mixture of the 2 Gaussians."""
     def __init__(self, n=2):
         super(GaussianMixture, self).__init__()
         self.pi = Parameter(torch.normal(torch.zeros(n), 1))
 
-    def forward(mus, log_sigmas)
+    def forward(self):
         pi = F.softmax(self.pi)  # proba for each gaussian
         return pi
