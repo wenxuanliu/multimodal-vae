@@ -16,7 +16,7 @@ class MultimodalVAE(nn.Module):
         self.image_decoder = ImageDecoder()
         self.text_encoder = TextEncoder()
         self.text_decoder = TextDecoder()
-        self.mixture_model = GaussianMixture(2)
+        self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
         if self.training:
@@ -46,10 +46,8 @@ class MultimodalVAE(nn.Module):
         logvar = torch.stack((image_logvar, text_logvar), dim=0)
         
         # grab learned mixture weights and sample
-        pi = self.mixture_model()
-        ix = torch.multinomial(pi, 1)
-        # sample from sampled gaussian
-        z = self.reparametrize(mu[ix].squeeze(0), logvar[ix].squeeze(0))
+        mu, logvar = self.experts(mu, logvar)
+        z = self.reparametrize(mu, logvar)
 
         # reconstruct inputs based on that gaussian
         image_recon = self.decoder_image(z)
@@ -108,13 +106,16 @@ class TextDecoder(nn.Module):
         return F.log_softmax(self.fc4(h))
 
 
-class GaussianMixture(nn.Module):
-    """Given a (mu, std) for images, and a (mu, std) for text,
-    model the joint as a simple mixture of the 2 Gaussians."""
-    def __init__(self, n=2):
-        super(GaussianMixture, self).__init__()
-        self.pi = Parameter(torch.normal(torch.zeros(n), 1))
+class ProductOfExperts(nn.Module):
+    """Return parameters for product of independent experts.
+    See https://arxiv.org/pdf/1410.7827.pdf for equations.
 
-    def forward(self):
-        pi = F.softmax(self.pi)  # proba for each gaussian
-        return pi
+    :param mu: M x D for M experts
+    :param logvar: M x D for M experts
+    """
+    def forward(self, mu, logvar):
+        var = torch.exp(logvar)
+        pd_mu = torch.sum(mu * var, dim=0) / torch.sum(var, dim=0)
+        pd_var = 1 / torch.sum(1 / var, dim=0)
+        pd_logvar = torch.log(pd_var)
+        return pd_mu, pd_logvar

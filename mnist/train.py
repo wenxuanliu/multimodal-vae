@@ -48,11 +48,10 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    model = EmbedNet()
-    embed.load_state_dict(checkpoint['embedding_state_dict'])
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model = MultimodalVAE()
+    model.load_state_dict(checkpoint['state_dict'])
     
-    return embed, model
+    return model
 
 
 def loss_function(recon_image, image, recon_text, text,
