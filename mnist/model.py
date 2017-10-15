@@ -53,7 +53,7 @@ class MultimodalVAE(nn.Module):
         image_recon = self.decoder_image(z)
         text_recon = self.decoder_text(z)
 
-        return image_recon, text_recon, mu, logvar
+        return image_recon, text_recon, mu, logvar        
 
 
 class ImageEncoder(nn.Module):

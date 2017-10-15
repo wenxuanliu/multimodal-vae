@@ -48,10 +48,10 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    model = MultimodalVAE()
-    model.load_state_dict(checkpoint['state_dict'])
+    vae = MultimodalVAE()
+    vae.load_state_dict(checkpoint['state_dict'])
     
-    return model
+    return vae
 
 
 def loss_function(recon_image, image, recon_text, text,
@@ -64,7 +64,6 @@ def loss_function(recon_image, image, recon_text, text,
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    # TODO: which mu/logvar to use? Do I sample the mixture_model?
     return image_BCE + text_BCE + elbo_lambda * KLD
 
 
@@ -97,15 +96,15 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = MultimodalVAE()
+    vae = MultimodalVAE()
     if args.cuda:
-        model.cuda()
+        vae.cuda()
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
 
     def train(epoch):
-        model.train()
+        vae.train()
         loss_meter = AverageMeter()
 
         for batch_idx, (image, text) in enumerate(train_loader):
@@ -115,7 +114,7 @@ if __name__ == "__main__":
             optimizer.zero_grad()
 
             image = image.view(-1, 784)  # flatten image
-            recon_image, recon_text, mu, logvar = model(image, text) 
+            recon_image, recon_text, mu, logvar = vae(image, text) 
             loss = loss_function(recon_image, image, recon_text, text, mu, logvar, 
                                  elbo_lambda=args.elbo_lambda)
             loss.backward()
@@ -132,7 +131,7 @@ if __name__ == "__main__":
 
 
     def test():
-        model.eval()
+        vae.eval()
         test_loss = 0
 
         for batch_idx, (image, text) in enumerate(test_loader):
@@ -140,7 +139,7 @@ if __name__ == "__main__":
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
 
-            recon_image, recon_text, mu, logvar = model(image, text) 
+            recon_image, recon_text, mu, logvar = vae(image, text) 
             loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
             test_loss += loss.data[0]
 
