@@ -71,7 +71,7 @@ def loss_function(recon_image, image, recon_text, text,
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--elbo_lambda', type=float, default=0.1,
+    parser.add_argument('--elbo_lambda', type=float, default=0.01,
                         help='BCE + elbo_lambda * KLD')
     parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
@@ -116,7 +116,8 @@ if __name__ == "__main__":
 
             image = image.view(-1, 784)  # flatten image
             recon_image, recon_text, mu, logvar = model(image, text) 
-            loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
+            loss = loss_function(recon_image, image, recon_text, text, mu, logvar, 
+                                 elbo_lambda=args.elbo_lambda)
             loss.backward()
 
             loss_meter.update(loss.data[0], len(image))
@@ -124,7 +125,7 @@ if __name__ == "__main__":
 
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                    epoch, batch_idx * len(image), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss_meter.avg))
 
         print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, loss_meter.avg))

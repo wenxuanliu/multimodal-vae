@@ -113,8 +113,8 @@ class ProductOfExperts(nn.Module):
     :param mu: M x D for M experts
     :param logvar: M x D for M experts
     """
-    def forward(self, mu, logvar):
-        var = torch.exp(logvar)
+    def forward(self, mu, logvar, eps=1e-8):
+        var = torch.exp(logvar) + eps
         pd_mu = torch.sum(mu * var, dim=0) / torch.sum(var, dim=0)
         pd_var = 1 / torch.sum(1 / var, dim=0)
         pd_logvar = torch.log(pd_var)
