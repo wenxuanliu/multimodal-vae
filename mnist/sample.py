@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import numpy as np
+
 import torch
 from torch.autograd import Variable
 from torchvision.utils import save_image
@@ -46,6 +48,6 @@ if __name__ == "__main__":
     # save text samples to filesystem
     with open('./results/sample_texts.txt', 'w') as fp:
         text_recon_np = text_recon.data.numpy()
-        text_recon_np = np.argmax(text_recon_np)
+        text_recon_np = np.argmax(text_recon_np, axis=1).tolist()
         for i, item in enumerate(text_recon_np):
             fp.write('Text (%d): %s\n' % (i, item))
