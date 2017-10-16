@@ -34,8 +34,8 @@ if __name__ == "__main__":
         sample = sample.cuda()
     
     # generate image and text
-    image_recon = vae.decoder_image(sample).cpu()
-    text_recon = vae.decoder_text(sample).cpu()
+    image_recon = vae.decode_image(sample).cpu()
+    text_recon = vae.decode_text(sample).cpu()
 
     if not os.path.isdir('./results'):
         os.mkdirs('./results')

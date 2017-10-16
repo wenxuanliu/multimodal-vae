@@ -29,13 +29,13 @@ class MultimodalVAE(nn.Module):
     def encode_image(self, x):
         return self.image_encoder(x)
 
-    def decoder_image(self, x):
+    def decode_image(self, x):
         return self.image_decoder(x)
 
     def encode_text(self, x):
         return self.text_encoder(x)
 
-    def decoder_text(self, x):
+    def decode_text(self, x):
         return self.text_decoder(x)
 
     def forward(self, image, text):
