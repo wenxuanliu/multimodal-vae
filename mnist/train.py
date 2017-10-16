@@ -2,7 +2,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
 import sys
+import shutil
 
 import torch
 import torch.nn as nn
@@ -139,6 +141,7 @@ if __name__ == "__main__":
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
 
+            image = image.view(-1, 784)  # flatten image
             recon_image, recon_text, mu, logvar = vae(image, text) 
             loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
             test_loss += loss.data[0]
@@ -157,7 +160,7 @@ if __name__ == "__main__":
         best_loss = min(loss, best_loss)
 
         save_checkpoint({
-            'state_dict': model.state_dict(),
+            'state_dict': vae.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')

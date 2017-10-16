@@ -11,7 +11,7 @@ from torchvision import datasets
 
 if __name__ == "__main__":
     if not os.path.isdir('./data'):
-        os.mkdirs('./data')
+        os.makedirs('./data')
         print('Created ./data.')
 
     train_loader = data.DataLoader(
