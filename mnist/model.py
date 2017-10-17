@@ -53,7 +53,7 @@ class MultimodalVAE(nn.Module):
         image_recon = self.decode_image(z)
         text_recon = self.decode_text(z)
 
-        return image_recon, text_recon, mu, logvar    
+        return image_recon, text_recon, mu, logvar
 
     def gen_latents(self, image, text):
         # compute separate gaussians per modality
@@ -66,6 +66,22 @@ class MultimodalVAE(nn.Module):
         mu, logvar = self.experts(mu, logvar)
         z = self.reparametrize(mu, logvar)
         return z
+
+    def generate_given_image(self, image):
+        mu, logvar = self.encode_image(image)
+        z = self.reparametrize(mu, logvar)
+        image_recon = self.decode_image(z)
+        text_recon = self.decode_text(z)
+
+        return image_recon, text_recon, mu, logvar
+
+    def generate_given_text(self, text):
+        mu, logvar = self.encode_text(text)
+        z = self.reparametrize(mu, logvar)
+        image_recon = self.decode_image(z)
+        text_recon = self.decode_text(z)
+
+        return image_recon, text_recon, mu, logvar
 
 
 class ImageEncoder(nn.Module):
