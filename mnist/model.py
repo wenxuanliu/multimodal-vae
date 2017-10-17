@@ -10,12 +10,12 @@ from torch.nn.parameter import Parameter
 
 
 class MultimodalVAE(nn.Module):
-    def __init__(self):
+    def __init__(self, n_latents=20):
         super(MultimodalVAE, self).__init__()
-        self.image_encoder = ImageEncoder()
-        self.image_decoder = ImageDecoder()
-        self.text_encoder = TextEncoder()
-        self.text_decoder = TextDecoder()
+        self.image_encoder = ImageEncoder(n_latents)
+        self.image_decoder = ImageDecoder(n_latents)
+        self.text_encoder = TextEncoder(n_latents)
+        self.text_decoder = TextDecoder(n_latents)
         self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
@@ -70,7 +70,7 @@ class MultimodalVAE(nn.Module):
 
 class ImageEncoder(nn.Module):
     """MNIST doesn't need CNN, so use a lightweight FNN"""
-    def __init__(self):
+    def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(784, 400),
@@ -79,19 +79,21 @@ class ImageEncoder(nn.Module):
             nn.Linear(400, 200),
             nn.BatchNorm1d(200),
             nn.ReLU(),
-            nn.Linear(200, 20 * 2),
+            nn.Linear(200, n_latents * 2),
         )
+        self.n_latents = n_latents
 
     def forward(self, x):
+        n_latents = self.n_latents
         x = self.net(x)
-        return x[:, :20], x[:, 20:]
+        return x[:, :n_latents], x[:, n_latents:]
 
 
 class ImageDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, n_latents):
         super(ImageDecoder, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(20, 200),
+            nn.Linear(n_latents, 200),
             nn.BatchNorm1d(200),
             nn.ReLU(),
             nn.Linear(200, 400),
@@ -107,27 +109,29 @@ class ImageDecoder(nn.Module):
 
 class TextEncoder(nn.Module):
     """MNIST has a vocab of size 10 words."""
-    def __init__(self):
+    def __init__(self, n_latents):
         super(TextEncoder, self).__init__()
         self.net = nn.Sequential(
             nn.Embedding(10, 50),
             nn.BatchNorm1d(50),
             nn.ReLU(),
-            nn.Linear(50, 20 * 2)
+            nn.Linear(50, n_latents * 2)
         )
+        self.n_latents = n_latents
 
     def forward(self, x):
+        n_latents = self.n_latents
         x = self.net(x)
-        return x[:, :20], x[:, 20:]
+        return x[:, :n_latents], x[:, n_latents:]
 
 
 class TextDecoder(nn.Module):
     """Project back into 10 dimensions and use softmax 
     to pick the word."""
-    def __init__(self):
+    def __init__(self, n_latents):
         super(TextDecoder, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(20, 10),
+            nn.Linear(n_latents, 10),
             nn.BatchNorm1d(10),
             nn.ReLU(),
             nn.Linear(10, 10),
@@ -154,7 +158,7 @@ class ProductOfExperts(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, n_latents=20):
         super(VAE, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(784, 400),
@@ -163,11 +167,11 @@ class VAE(nn.Module):
             nn.Linear(400, 200),
             nn.BatchNorm1d(200),
             nn.ReLU(),
-            nn.Linear(200, 20*2),
+            nn.Linear(200, n_latents * 2),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(20, 200),
+            nn.Linear(n_latents, 200),
             nn.BatchNorm1d(200),
             nn.ReLU(),
             nn.Linear(200, 400),
@@ -175,10 +179,12 @@ class VAE(nn.Module):
             nn.ReLU(),
             nn.Linear(400, 784),
         )
+        self.n_latents = n_latents
 
     def encode(self, x):
+        n_latents = self.n_latents
         x = self.encoder(x)
-        return x[:, :20], x[:, 20:]
+        return x[:, :n_latents], x[:, n_latents:]
 
     def reparameterize(self, mu, logvar):
         if self.training:

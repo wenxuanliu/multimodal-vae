@@ -72,6 +72,8 @@ def loss_function(recon_image, image, recon_text, text, mu, logvar):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--n_latents', type=int, default=20,
+                        help='size of the latent embedding')
     parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
@@ -96,7 +98,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    vae = MultimodalVAE()
+    vae = MultimodalVAE(n_latents=args.n_latents)
     if args.cuda:
         vae.cuda()
 
