@@ -50,8 +50,8 @@ class MultimodalVAE(nn.Module):
         z = self.reparametrize(mu, logvar)
 
         # reconstruct inputs based on that gaussian
-        image_recon = self.decoder_image(z)
-        text_recon = self.decoder_text(z)
+        image_recon = self.decode_image(z)
+        text_recon = self.decode_text(z)
 
         return image_recon, text_recon, mu, logvar        
 
