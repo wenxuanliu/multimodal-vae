@@ -124,19 +124,29 @@ class ProductOfExperts(nn.Module):
 class VAE(nn.Module):
     def __init__(self):
         super(VAE, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(784, 400),
+            nn.BatchNorm1d(400),
+            nn.ReLU(),
+            nn.Linear(400, 200),
+            nn.BatchNorm1d(200),
+            nn.ReLU(),
+            nn.Linear(200, 20*2),
+        )
 
-        self.fc1 = nn.Linear(784, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, 784)
-
-        self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.decoder = nn.Sequential(
+            nn.Linear(20, 200),
+            nn.BatchNorm1d(200),
+            nn.ReLU(),
+            nn.Linear(200, 400),
+            nn.BatchNorm1d(400),
+            nn.ReLU(),
+            nn.Linear(400, 784),
+        )
 
     def encode(self, x):
-        h1 = self.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
+        x = self.encoder(x)
+        return x[:, :20], x[:, 20:]
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -147,8 +157,8 @@ class VAE(nn.Module):
           return mu
 
     def decode(self, z):
-        h3 = self.relu(self.fc3(z))
-        return self.sigmoid(self.fc4(h3))
+        z = self.decoder(z)
+        return F.sigmoid(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x.view(-1, 784))

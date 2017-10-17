@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
+import shutil
 import sys
 
 import torch
@@ -9,7 +11,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import transforms, datasets
+from torchvision.utils import save_image
 
 from model import VAE
 
@@ -61,6 +64,7 @@ def loss_function(recon_x, x, mu, logvar):
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    
     # Normalise by same number of elements as in reconstruction
     KLD /= args.batch_size * 784
 
@@ -70,12 +74,12 @@ def loss_function(recon_x, x, mu, logvar):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                        help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                        help='learning rate (default: 0.01)')
+    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
+                        help='input batch size for training (default: 128)')
+    parser.add_argument('--epochs', type=int, default=20, metavar='N',
+                        help='number of epochs to train (default: 20)')
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
+                        help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--cuda', action='store_true', default=False,
@@ -100,7 +104,7 @@ if __name__ == "__main__":
 
 
     def train(epoch):
-        model.train()
+        vae.train()
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(train_loader):
@@ -108,7 +112,7 @@ if __name__ == "__main__":
             if args.cuda:
                 data = data.cuda()
             optimizer.zero_grad()
-            recon_batch, mu, logvar = model(data)
+            recon_batch, mu, logvar = vae(data)
             loss = loss_function(recon_batch, data, mu, logvar)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
@@ -121,7 +125,7 @@ if __name__ == "__main__":
         print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, loss_meter.avg))
 
 
-    def test(epoch):
+    def test():
         vae.eval()
         test_loss = 0
         for i, (data, _) in enumerate(test_loader):
@@ -148,7 +152,7 @@ if __name__ == "__main__":
             'state_dict': vae.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, folder='./trained_models')
+        }, is_best, folder='./trained_models/image_only')
 
         if is_best:
             sample = Variable(torch.randn(64, 20))
@@ -157,4 +161,4 @@ if __name__ == "__main__":
 
             sample = vae.decode(sample).cpu()
             save_image(sample.data.view(64, 1, 28, 28),
-                       './results/sample_image.png')
+                       './results/image_only/sample_image.png')
