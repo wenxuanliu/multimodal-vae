@@ -2,6 +2,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import torch
+from torch.autograd import Variable
+from torchvision import transforms
+
 from generator import ShuffleMNIST
 from train import load_checkpoint
 
@@ -10,12 +14,16 @@ from sklearn.decomposition import PCA
 
 if __name__ == "__main__":
     import os
+    import pickle
     import argparse
     import numpy as np
+    import matplotlib
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--n_latents', type=int, default=20)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -26,7 +34,8 @@ if __name__ == "__main__":
                      transform=transforms.ToTensor()),
         batch_size=128, shuffle=True)
 
-    vae = load_checkpoint('./trained_models/model_best.pth.tar', use_cuda=args.cuda)
+    vae = load_checkpoint('./trained_models/model_best.pth.tar', 
+                          n_latents=args.n_latents, use_cuda=args.cuda)
     vae.eval()
 
     for batch_idx, (image, text) in enumerate(loader):
@@ -40,11 +49,14 @@ if __name__ == "__main__":
             latents = z
             labels = text
         else:
-            latents = torch.stack((latents, z))
-            labels = torch.stack((labels, text))
+            latents = torch.cat((latents, z))
+            labels = torch.cat((labels, text))
 
     latents = latents.cpu().data.numpy()
     labels = labels.cpu().data.numpy()
+
+    with open('./results/dump.pkl', 'wb') as fp:
+        pickle.dump({'latents': latents, 'labels': labels}, fp)
 
     if latents.shape[1] > 2:
         pca = PCA(n_components=2)

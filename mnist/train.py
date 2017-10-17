@@ -42,7 +42,7 @@ def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
                         os.path.join(folder, 'model_best.pth.tar'))
 
 
-def load_checkpoint(file_path, use_cuda=False):
+def load_checkpoint(file_path, n_latents=20, use_cuda=False):
     """Return EmbedNet instance"""
     if use_cuda:
         checkpoint = torch.load(file_path)
@@ -50,7 +50,7 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    vae = MultimodalVAE()
+    vae = MultimodalVAE(n_latents=n_latents)
     vae.load_state_dict(checkpoint['state_dict'])
     
     return vae
