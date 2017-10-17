@@ -60,37 +60,53 @@ class ImageEncoder(nn.Module):
     """MNIST doesn't need CNN, so use a lightweight FNN"""
     def __init__(self):
         super(ImageEncoder, self).__init__()
-        self.fc1 = nn.Linear(784, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
+        self.net = nn.Sequential(
+            nn.Linear(784, 400),
+            nn.BatchNorm1d(400),
+            nn.ReLU(),
+            nn.Linear(400, 200),
+            nn.BatchNorm1d(200),
+            nn.ReLU(),
+            nn.Linear(200, 20 * 2),
+        )
 
     def forward(self, x):
-        h = F.relu(self.fc1(x))
-        return self.fc21(h), self.fc22(h)
+        x = self.net(x)
+        return x[:, :20], x[:, 20:]
 
 
 class ImageDecoder(nn.Module):
     def __init__(self):
         super(ImageDecoder, self).__init__()
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, 784)
+        self.net = nn.Sequential(
+            nn.Linear(20, 200),
+            nn.BatchNorm1d(200),
+            nn.ReLU(),
+            nn.Linear(200, 400),
+            nn.BatchNorm1d(400),
+            nn.ReLU(),
+            nn.Linear(400, 784),
+        )
 
     def forward(self, z):
-        h = F.relu(self.fc3(z))
-        return F.sigmoid(self.fc4(h))
+        z = self.net(z)
+        return F.sigmoid(z)
 
 
 class TextEncoder(nn.Module):
     """MNIST has a vocab of size 10 words."""
     def __init__(self):
         super(TextEncoder, self).__init__()
-        self.fc1 = nn.Embedding(10, 50)
-        self.fc21 = nn.Linear(50, 20)
-        self.fc22 = nn.Linear(50, 20)
+        self.net = nn.Sequential(
+            nn.Embedding(10, 50),
+            nn.BatchNorm1d(50),
+            nn.ReLU(),
+            nn.Linear(50, 20 * 2)
+        )
 
     def forward(self, x):
-        h = F.relu(self.fc1(x))
-        return self.fc21(h), self.fc22(h)
+        x = self.net(x)
+        return x[:, :20], x[:, 20:]
 
 
 class TextDecoder(nn.Module):
@@ -98,12 +114,16 @@ class TextDecoder(nn.Module):
     to pick the word."""
     def __init__(self):
         super(TextDecoder, self).__init__()
-        self.fc3 = nn.Linear(20, 10)
-        self.fc4 = nn.Linear(10, 10)
+        self.net = nn.Sequential(
+            nn.Linear(20, 10),
+            nn.BatchNorm1d(10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+        )
 
     def forward(self, z):
-        h = F.relu(self.fc3(z))
-        return F.log_softmax(self.fc4(h))
+        z = self.net(z)
+        return F.log_softmax(z)
 
 
 class ProductOfExperts(nn.Module):

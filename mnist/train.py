@@ -56,8 +56,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_image, image, recon_text, text,
-                  mu, logvar, elbo_lambda=1):
+def loss_function(recon_image, image, recon_text, text, mu, logvar):
     image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
     text_BCE = F.nll_loss(recon_text, text)
 
@@ -66,14 +65,13 @@ def loss_function(recon_image, image, recon_text, text,
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return image_BCE + text_BCE + elbo_lambda * KLD
+    KLD /= args.batch_size * 784
+    return image_BCE + text_BCE + KLD
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--elbo_lambda', type=float, default=0.01,
-                        help='BCE + elbo_lambda * KLD')
     parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
@@ -117,8 +115,7 @@ if __name__ == "__main__":
 
             image = image.view(-1, 784)  # flatten image
             recon_image, recon_text, mu, logvar = vae(image, text) 
-            loss = loss_function(recon_image, image, recon_text, text, mu, logvar, 
-                                 elbo_lambda=args.elbo_lambda)
+            loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
             loss.backward()
 
             loss_meter.update(loss.data[0], len(image))
@@ -163,5 +160,4 @@ if __name__ == "__main__":
             'state_dict': vae.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, folder='./trained_models')
-            
+        }, is_best, folder='./trained_models')     
