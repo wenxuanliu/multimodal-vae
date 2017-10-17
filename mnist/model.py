@@ -53,7 +53,19 @@ class MultimodalVAE(nn.Module):
         image_recon = self.decode_image(z)
         text_recon = self.decode_text(z)
 
-        return image_recon, text_recon, mu, logvar        
+        return image_recon, text_recon, mu, logvar    
+
+    def gen_latents(self, image, text):
+        # compute separate gaussians per modality
+        image_mu, image_logvar = self.encode_image(image)
+        text_mu, text_logvar = self.encode_text(text)
+        mu = torch.stack((image_mu, text_mu), dim=0)
+        logvar = torch.stack((image_logvar, text_logvar), dim=0)
+        
+        # grab learned mixture weights and sample
+        mu, logvar = self.experts(mu, logvar)
+        z = self.reparametrize(mu, logvar)
+        return z
 
 
 class ImageEncoder(nn.Module):
