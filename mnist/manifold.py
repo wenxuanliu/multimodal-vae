@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     if latents.shape[1] > 2:
         pca = PCA(n_components=2)
-        pca.fit_transform(latents)
+        latents = pca.fit_transform(latents)
 
     # now we have latents guaranteed to be 2 dimensions
     # let's plot the manifold
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     plt.figure()
     for i in xrange(10):
         latents_i = latents[labels == i]
-        plt.scatter(latents_i[0], latents_i[1], color=next(colors), 
+        plt.scatter(latents_i[:, 0], latents_i[:, 1], color=next(colors), 
                     label=str(i), alpha=0.3, edgecolors='none')
     plt.legend()
     if not os.path.exists('./results'):
