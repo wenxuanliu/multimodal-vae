@@ -39,6 +39,8 @@ if __name__ == "__main__":
     vae = load_checkpoint('./trained_models/model_best.pth.tar', 
                           n_latents=args.n_latents, use_cuda=args.cuda)
     vae.eval()
+    if args.cuda:
+        vae.cuda()
 
     for batch_idx, (image, text) in enumerate(loader):
         if args.cuda:
