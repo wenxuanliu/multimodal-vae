@@ -51,6 +51,9 @@ if __name__ == "__main__":
     # load trained model
     vae = load_checkpoint('./trained_models/model_best.pth.tar', 
                           n_latents=args.n_latents, use_cuda=args.cuda)
+    vae.eval()
+    if args.cuda:
+        vae.cuda()
 
     # mode 1: unconditional generation
     if not args.condition_on_image and not args.condition_on_text:
@@ -91,11 +94,12 @@ if __name__ == "__main__":
     sample = Variable(torch.randn(args.n_samples, args.n_latents))
     if args.cuda:
         sample = sample.cuda()
+    
     # sample from particular gaussian by multiplying + adding
     mu = mu.expand_as(sample)
     std = std.expand_as(sample)
     sample = sample.mul(std).add_(mu)
-    
+
     # generate image and text
     image_recon = vae.decode_image(sample).cpu()
     text_recon = vae.decode_text(sample).cpu()
