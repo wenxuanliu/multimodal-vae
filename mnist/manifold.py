@@ -6,9 +6,7 @@ import torch
 from torch.autograd import Variable
 from torchvision import transforms, datasets
 
-from generator import ShuffleMNIST
 from train import load_checkpoint
-
 from sklearn.decomposition import PCA
 
 
