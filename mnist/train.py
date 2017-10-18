@@ -113,10 +113,20 @@ if __name__ == "__main__":
             if args.cuda:
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
-            optimizer.zero_grad()
-
             image = image.view(-1, 784)  # flatten image
-            recon_image, recon_text, mu, logvar = vae(image, text) 
+            optimizer.zero_grad()
+            
+            # for each batch, use 3 types of examples (joint, image-only, and text-only)
+            # this way, we can hope to reconstruct both modalities from one
+            recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text)
+            # combine all of the batches (no need to reorder; we show the model all at once)
+            recon_image = torch.cat((recon_image_1, recon_image_2, recon_image_3))
+            recon_text = torch.cat((recon_text_1, recon_text_2, recon_text_3))
+            mu = torch.cat((mu_1, mu_2, mu_3))
+            logvar = torch.cat((logvar_1, logvar_2, logvar_3))
+
             loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
             loss.backward()
 
@@ -139,9 +149,16 @@ if __name__ == "__main__":
             if args.cuda:
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
-
             image = image.view(-1, 784)  # flatten image
-            recon_image, recon_text, mu, logvar = vae(image, text) 
+                
+            recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text)
+            recon_image = torch.cat((recon_image_1, recon_image_2, recon_image_3))
+            recon_text = torch.cat((recon_text_1, recon_text_2, recon_text_3))
+            mu = torch.cat((mu_1, mu_2, mu_3))
+            logvar = torch.cat((logvar_1, logvar_2, logvar_3))
+
             loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
             test_loss += loss.data[0]
 

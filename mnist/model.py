@@ -38,17 +38,25 @@ class MultimodalVAE(nn.Module):
     def decode_text(self, x):
         return self.text_decoder(x)
 
-    def forward(self, image, text):
-        # compute separate gaussians per modality
-        image_mu, image_logvar = self.encode_image(image)
-        text_mu, text_logvar = self.encode_text(text)
-        mu = torch.stack((image_mu, text_mu), dim=0)
-        logvar = torch.stack((image_logvar, text_logvar), dim=0)
+    def forward(self, image=None, text=None):
+        # can't just put nothing
+        assert image is not None or text is not None
         
-        # grab learned mixture weights and sample
-        mu, logvar = self.experts(mu, logvar)
+        if image is not None and text is not None:
+            # compute separate gaussians per modality
+            image_mu, image_logvar = self.encode_image(image)
+            text_mu, text_logvar = self.encode_text(text)
+            mu = torch.stack((image_mu, text_mu), dim=0)
+            logvar = torch.stack((image_logvar, text_logvar), dim=0)
+            # grab learned mixture weights and sample
+            mu, logvar = self.experts(mu, logvar)
+        elif image is not None:
+            mu, logvar = self.encode_image(image)
+        elif text is not None:
+            mu, logvar = self.encode_text(text)
+        
+        # reparametrization trick to sample
         z = self.reparametrize(mu, logvar)
-
         # reconstruct inputs based on that gaussian
         image_recon = self.decode_image(z)
         text_recon = self.decode_text(z)
