@@ -12,25 +12,32 @@ from torchvision.utils import save_image
 from train import load_checkpoint
 
 
-def fetch_mnist_image(label):
+def fetch_mnist_image(_label):
     # find an example of the image in our dataset
-    mnist = datasets.MNIST('./data', train=False, download=True, 
-                           transform=transforms.ToTensor())
-    images = mnist.test_data.cpu().numpy()
-    labels = mnist.test_labels.cpu().numpy()
+    loader = torch.utils.data.DataLoader(
+        datasets.MNIST('./data', train=False, download=True, 
+                       transform=transforms.ToTensor()),
+        batch_size=128, shuffle=False)
+    # load all data into a single structure
+    images, labels = [], []
+    for batch_idx, (image, label) in enumerate(loader):
+        image = image.view(-1, 784)
+        images.append(image)
+        labels.append(label)
+    images = torch.cat(images).cpu().numpy()
+    labels = torch.cat(labels).cpu().numpy()
     # take all the ones where it's an image of the correct label
-    images = images[labels == label]
+    images = images[labels == _label]
     # randomly choose one
     image = images[np.random.choice(np.arange(images.shape[0]))]
     image = torch.from_numpy(image).float() 
     image = image.unsqueeze(0)
-    image = image.view(-1, 784)
-    return Variable(image)
+    return Variable(image, volatile=True)
 
 
 def fetch_mnist_text(label):
     text = torch.LongTensor([label])
-    return Variable(text)
+    return Variable(text, volatile=True)
 
 
 if __name__ == "__main__":
