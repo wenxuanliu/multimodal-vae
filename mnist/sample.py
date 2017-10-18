@@ -12,25 +12,32 @@ from torchvision.utils import save_image
 from train import load_checkpoint
 
 
-def fetch_mnist_image(label):
+def fetch_mnist_image(_label):
     # find an example of the image in our dataset
-    mnist = datasets.MNIST('./data', train=False, download=True, 
-                           transform=transforms.ToTensor())
-    images = mnist.test_data.cpu().numpy()
-    labels = mnist.test_labels.cpu().numpy()
+    loader = torch.utils.data.DataLoader(
+        datasets.MNIST('./data', train=False, download=True, 
+                       transform=transforms.ToTensor()),
+        batch_size=128, shuffle=False)
+    # load all data into a single structure
+    images, labels = [], []
+    for batch_idx, (image, label) in enumerate(loader):
+        image = image.view(-1, 784)
+        images.append(image)
+        labels.append(label)
+    images = torch.cat(images).cpu().numpy()
+    labels = torch.cat(labels).cpu().numpy()
     # take all the ones where it's an image of the correct label
-    images = images[labels == label]
+    images = images[labels == _label]
     # randomly choose one
     image = images[np.random.choice(np.arange(images.shape[0]))]
     image = torch.from_numpy(image).float() 
     image = image.unsqueeze(0)
-    image = image.view(-1, 784)
-    return Variable(image)
+    return Variable(image, volatile=True)
 
 
 def fetch_mnist_text(label):
     text = torch.LongTensor([label])
-    return Variable(text)
+    return Variable(text, volatile=True)
 
 
 if __name__ == "__main__":
@@ -51,6 +58,9 @@ if __name__ == "__main__":
     # load trained model
     vae = load_checkpoint('./trained_models/model_best.pth.tar', 
                           n_latents=args.n_latents, use_cuda=args.cuda)
+    vae.eval()
+    if args.cuda:
+        vae.cuda()
 
     # mode 1: unconditional generation
     if not args.condition_on_image and not args.condition_on_text:
@@ -91,11 +101,12 @@ if __name__ == "__main__":
     sample = Variable(torch.randn(args.n_samples, args.n_latents))
     if args.cuda:
         sample = sample.cuda()
+    
     # sample from particular gaussian by multiplying + adding
     mu = mu.expand_as(sample)
     std = std.expand_as(sample)
     sample = sample.mul(std).add_(mu)
-    
+
     # generate image and text
     image_recon = vae.decode_image(sample).cpu()
     text_recon = vae.decode_text(sample).cpu()
