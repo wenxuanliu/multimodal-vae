@@ -22,11 +22,14 @@ def fetch_mnist_image(label):
     images = images[labels == label]
     # randomly choose one
     image = images[np.random.choice(np.arange(images.shape[0]))]
+    image = torch.from_numpy(image).float() 
+    image = image.unsqueeze(0)
+    image = image.view(-1, 784)
     return Variable(image)
 
 
 def fetch_mnist_text(label):
-    text = torch.Tensor([label])
+    text = torch.LongTensor([label])
     return Variable(text)
 
 
@@ -36,9 +39,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('n_samples', type=int, help='Number of images and texts to sample.')
     parser.add_argument('--n_latents', type=int, default=20, help='Dimension of latent embedding.')
-    parser.add_argument('--condition_on_image', action='store_true',
+    parser.add_argument('--condition_on_image', type=int, default=None,
                         help='If True, generate text conditioned on an image.')
-    parser.add_argument('--condition_on_text', action='store_true',
+    parser.add_argument('--condition_on_text', type=int, default=None, 
                         help='If True, generate images conditioned on a text.')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -67,11 +70,11 @@ if __name__ == "__main__":
         text = fetch_mnist_text(args.condition_on_text)
         if args.cuda:
             text = text.cuda()
-        mu, logvar = vae.encode_text(image)
+        mu, logvar = vae.encode_text(text)
         std = logvar.mul(0.5).exp_()
 
     # mode 4: generate conditioned on image and text
-    else args.condition_on_text and args.condition_on_image:
+    elif args.condition_on_text and args.condition_on_image:
         image = fetch_mnist_image(args.condition_on_image)
         text = fetch_mnist_text(args.condition_on_text)
         if args.cuda:
