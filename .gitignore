@@ -104,3 +104,5 @@ ENV/
 **/data
 **/trained_models
 **/results
+**/notebooks
+**/*.pkl

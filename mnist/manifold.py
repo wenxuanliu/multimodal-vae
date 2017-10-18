@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 import torch
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import transforms, datasets
 
 from generator import ShuffleMNIST
 from train import load_checkpoint
@@ -29,9 +29,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    # use this instead of shuffle loader because we don't want 
+    # to have negative examples here.
     loader = torch.utils.data.DataLoader(
-        ShuffleMNIST('./data/processed/test.pt',
-                     transform=transforms.ToTensor()),
+        datasets.MNIST('./data', train=False, download=True, 
+                       transform=transforms.ToTensor()),
         batch_size=128, shuffle=True)
 
     vae = load_checkpoint('./trained_models/model_best.pth.tar', 
