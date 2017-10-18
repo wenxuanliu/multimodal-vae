@@ -11,10 +11,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import transforms, datasets
 
 from model import MultimodalVAE
-from generator import ShuffleMNIST
 
 
 class AverageMeter(object):
@@ -89,11 +88,11 @@ if __name__ == "__main__":
 
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
-        ShuffleMNIST('./data/processed/training.pt',
+        datasets.MNIST('./data', train=True, download=True,
                      transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        ShuffleMNIST('./data/processed/test.pt',
+        datasets.MNIST('./data', train=False, download=True,
                      transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
 
@@ -119,17 +118,19 @@ if __name__ == "__main__":
             # for each batch, use 3 types of examples (joint, image-only, and text-only)
             # this way, we can hope to reconstruct both modalities from one
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image)
-            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
             # combine all of the batches (no need to reorder; we show the model all at once)
             recon_image = torch.cat((recon_image_1, recon_image_2, recon_image_3))
             recon_text = torch.cat((recon_text_1, recon_text_2, recon_text_3))
             mu = torch.cat((mu_1, mu_2, mu_3))
             logvar = torch.cat((logvar_1, logvar_2, logvar_3))
-
-            loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
+            # combine all of the input image/texts
+            image_3x = torch.cat((image, image, image))
+            text_3x = torch.cat((text, text, text))
+            
+            loss = loss_function(recon_image, image_3x, recon_text, text_3x, mu, logvar)
             loss.backward()
-
             loss_meter.update(loss.data[0], len(image))
             optimizer.step()
 
@@ -152,14 +153,16 @@ if __name__ == "__main__":
             image = image.view(-1, 784)  # flatten image
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image)
-            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
             recon_image = torch.cat((recon_image_1, recon_image_2, recon_image_3))
             recon_text = torch.cat((recon_text_1, recon_text_2, recon_text_3))
             mu = torch.cat((mu_1, mu_2, mu_3))
             logvar = torch.cat((logvar_1, logvar_2, logvar_3))
-
-            loss = loss_function(recon_image, image, recon_text, text, mu, logvar)
+            image_3x = torch.cat((image, image, image))
+            text_3x = torch.cat((text, text, text))
+            
+            loss = loss_function(recon_image, image_3x, recon_text, text_3x, mu, logvar)
             test_loss += loss.data[0]
 
         test_loss /= len(test_loader.dataset)
