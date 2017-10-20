@@ -9,8 +9,11 @@
 \usepackage{nicefrac}
 \usepackage{microtype}
 \usepackage{nips_2017}
+\usepackage{graphicx}
 \usepackage{natbib}
+
 \setcitestyle{numbers,open={[},close={]}}
+\graphicspath{ {./images/} }
 
 \title{Deep Multimodal Generative Models for Weakly-Supervised Learning}
 
@@ -35,7 +38,7 @@ The problem of learning from multiple modalities is especially important since t
 In this work, we propose a multimodal variational autoencoder (MMVAE). In our graphical model, we have two modalities $x_{1}$ and $x_{2}$ that are each conditioned on a latent variable $z$, which models the joint distribution, $p(x_{1}, x_{2})$. Such a modal is bi-directional since we can reconstruct both modalities from either $x_{1}$ or $x_{2}$. We will also show that we can train the MMVAE with sparse $(x_{1}, x_{2})$ pairs, and heavily utilize on a larger set of independent $(x_{1})$ and $(x_{2})$ examples. The most significant feature of MMVAEs is that it does not create a separate multimodal encoder $q(z | x_{1}, x_{2})$; instead it shares parameters with the encoders from each modality, $q(z | x_{1})$, $q(z | x_{2})$. This has the benefit of producing a simpler model while ensuring that high-dimensional missing modalities do not cause our generated samples to collapse.
 
 \subsection{Related Work}
-In deep learning, multimodal learning is often done using separate branches in the neural net for each modality, and a common top hidden layer. For instance, \citet{ngiam2011multimodal} trained deep autoencoders on audio and video input and found that the bimodal representations were better than any single equivalent. More recently, VAEs (\cite{kingma2013auto, kingma2014semi}) have been used to train models in high-dimensional multimodal settings. For example, conditional VAEs (\cite{sohn2015learning}) maximize a conditional log-likleihood by variational methods where often one modality is conditioned on another i.e. handwriting digits and labels, faces and attributes, or captioning. Notably, conditional VAEs (CVAE) are not bi-directional. 
+In deep learning, multimodal learning is often done using separate branches in the neural net for each modality, and a common top hidden layer. For instance, \citet{ngiam2011multimodal} trained deep autoencoders on audio and video input and found that the bimodal representations were better than any single equivalent. More recently, VAEs \cite{kingma2013auto, kingma2014semi} have been used to train models in high-dimensional multimodal settings. For example, conditional VAEs \cite{sohn2015learning} maximize a conditional log-likleihood by variational methods where often one modality is conditioned on another i.e. handwriting digits and labels, faces and attributes, or captioning. Notably, conditional VAEs (CVAE) are not bi-directional. 
 
 \citet{pandey2017variational} proposed the conditional multimodal autoencoder (CMMA), which also maximizes a conditional log-likelihood. CMMA explicitly connects the conditional variable the latent variable, where CVAE does not. Moreover, it also constrains the latent representation to be close to the joint representation across modalities. However, CMMA is still not bi-directional.
 
@@ -45,10 +48,32 @@ Finally, \citet{suzuki2016joint} proposed a joint multimodal VAE (JMVAE). This i
 This section first briefly goes over VAEs, and product of Gaussians (PoG), then details a new multimodal VAE (MMVAE).
 
 \subsection{Variational Autoencoders}
-\subsection{Product of Gaussians}
+Variational autoencoders (VAE) model a generative process as $z \sim \mathcal{N}(0, I)$ and $x \sim p_{\theta}(x | z)$ where $x$ is an observed variable, $z$ is a latent variable, and $\theta$ are the model parameters. VAE wish to maximize the marginal distribution $p(x) = \int p_{\theta}(x | z)p(z)dx$, which is intractor. Instead, we maximize the lower bound of the marginal distribution:
+
+\begin{equation}
+    \textup{log } p(x) \geq -D_{KL}(q_{\phi}(z | x) || p(z)) + E_{q_{\phi}}[\textup{log } p_{\theta}(x | z)]
+\end{equation}
+
+where $q_{\theta}(z | x)$ is a \textit{guide distribution} that approximates the posterior $p(z | x)$; $\theta$ are the parameters of $q$. In the text, we call $p_{\theta}(x | z)$ a decoder and $q_{\theta}(z | x)$ an encoder. In practice, $q$ is set to the familiy of Gaussian distributions, where optimization amounts to learning $\phi=\{\mu, \sigma\}$. The standard reparametrization trick is employed to sample $z$.
+
+\subsection{Product of Experts}
+
+We wish to model the interaction between our modalities as a product of experts. Fortunately, because our guide distributions are Gaussian, MMVAEs take advantage of the fact the product of two Gaussian distributions is itself a Gaussian distribution \cite{cao2014generalized}. The mean and covariance of the resulting Gaussian distribution is:
+
+\begin{equation}
+    \mu = (\sum_{i} \mu_{i}\Sigma^{-1}_{i})(\sum_{i}\Sigma^{-1}_{i})^{-1}
+\end{equation}
+\begin{equation}
+    \Sigma = (\sum_{i} \Sigma^{-1}_{i})^{-1}
+\end{equation}
+
+where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert.
+
 \subsection{Multimodal Variational Autoencoders}
 \subsection{Bidirectional Inference}
 
+\section{Experiments}
+TODO
 
 \bibliographystyle{abbrvnat}
 {\small
