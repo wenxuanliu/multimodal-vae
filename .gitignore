@@ -106,3 +106,10 @@ ENV/
 **/results
 **/notebooks
 **/*.pkl
+**/*.DS_Store
+**/*.aux
+**/*.bbl
+**/*.blg
+**/*.log
+**/*.pdf
+**/*.out
