@@ -134,7 +134,7 @@ if __name__ == "__main__":
             
             loss = loss_function(recon_image, image_3x, recon_text, text_3x, mu, logvar)
             loss.backward()
-            loss_meter.update(loss.data[0], len(image))
+            loss_meter.update(loss.data[0], len(image) * 3.)  # we show image 3 times 
             optimizer.step()
 
             if batch_idx % args.log_interval == 0:
