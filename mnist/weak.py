@@ -11,6 +11,8 @@ from __future__ import absolute_import
 import os
 import sys
 import shutil
+import random
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -57,7 +59,21 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
     optimizer = optim.Adam(vae.parameters(), lr=lr)
 
 
+    def loss_function(recon_image, image, recon_text, text, mu, logvar):
+        image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
+        text_BCE = F.nll_loss(recon_text, text)
+
+        # see Appendix B from VAE paper:
+        # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
+        # https://arxiv.org/abs/1312.6114
+        # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        KLD /= args.batch_size * 784
+        return image_BCE + text_BCE + KLD
+    
+
     def train(epoch):
+        random.seed(42)
         np.random.seed(42)  # important to have the same seed
                             # in order to make the same choices for weak supervision
                             # otherwise, we end up showing different examples over epochs
@@ -86,7 +102,8 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             n = 2
 
             # if we flip(weak_perc), then we show a paired relation example.
-            if np.random.random() < weak_perc:
+            flip = np.random.random()
+            if flip < weak_perc:
                 recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
                 recon_image = torch.cat((recon_image, recon_image_1))
                 recon_text = torch.cat((recon_text, recon_text_1))
@@ -174,17 +191,17 @@ if __name__ == "__main__":
     supervision_dir = './trained_models/weak_supervision'
     if os.path.isdir(supervision_dir):
         shutil.rmtree(supervision_dir)
-        os.makedirs(supervision_dir)
-        print('Created directory: %s' % supervision_dir)
+    os.makedirs(supervision_dir)
+    print('Created directory: %s' % supervision_dir)
 
     for weak_perc in [0, 1, 2, 5, 10, 25, 50, 100]:
         perc_dir = os.path.join(supervision_dir, 'weak_perc_%d' % weak_perc)
         if os.path.isdir(perc_dir):
             shutil.rmtree(perc_dir)
-            os.makedirs(perc_dir)
-            print('Created directory: %s' % perc_dir)
+        os.makedirs(perc_dir)
+        print('Created directory: %s' % perc_dir)
         
-        train_pipeline(out_dir, weak_perc, n_latents=args.n_latents, 
+        train_pipeline(perc_dir, weak_perc, n_latents=args.n_latents, 
                        batch_size=args.batch_size, epochs=args.epochs, lr=args.lr, 
                        log_interval=args.log_interval, cuda=args.cuda)
     
