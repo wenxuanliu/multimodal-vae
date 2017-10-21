@@ -52,6 +52,9 @@ def load_checkpoint(file_path, n_latents=20, use_cuda=False):
     vae = MultimodalVAE(n_latents=n_latents)
     vae.load_state_dict(checkpoint['state_dict'])
     
+    if use_cuda:
+        vae.cuda()
+
     return vae
 
 
