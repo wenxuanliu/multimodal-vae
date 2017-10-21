@@ -89,11 +89,11 @@ if __name__ == "__main__":
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('./data', train=True, download=True,
-                     transform=transforms.ToTensor()),
+                       transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('./data', train=False, download=True,
-                     transform=transforms.ToTensor()),
+                       transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
