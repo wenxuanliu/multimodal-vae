@@ -10,6 +10,8 @@
 \usepackage{microtype}
 \usepackage{nips_2017}
 \usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{amsmath}
 \usepackage{natbib}
 
 \setcitestyle{numbers,open={[},close={]}}
@@ -70,10 +72,46 @@ We wish to model the interaction between our modalities as a product of experts.
 where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert.
 
 \subsection{Multimodal Variational Autoencoders}
-\subsection{Bidirectional Inference}
+Given a dataset $(X, W) = \{ (x_{1,1}, x_{2,1}), ..., (x_{1,N}, x_{2,N}) \}$, where $x_{1}$ and $x_{2}$ are two modalities of possibly different dimensions. We assume that $x_{1}$ and $x_{2}$ are conditionally independent on the latent state $z$. Figure \ref{fig:diagram:graph} shows the graphical model of the generative process: $z \sim p(z)$ and $x_{1}, x_{2} \sim p(x_{1}, x_{2} | z)$.
 
-\section{Experiments}
-TODO
+We can estimate the lower bound of the log-likelihood $\textup{log }p(x_{1}, x_{2})$ as follows:
+
+\begin{equation}
+\textup{log }p(x_{1}, x_{2}) \geq E_{q_{\theta}(z | x_{1}, x_{2})}[\textup{log }\frac{p_{\theta}(x_{1}, x_{2}, z)}{q_{\phi}(z | x_{1}, x_{2})}]
+\end{equation}
+
+\begin{multline}
+\textup{log }p(x_{1}, x_{2}) \geq -D_{KL}(q_{\phi}(z | x_{1}, x_{2}) || p(z)) \\ + E_{q_{\phi}(z | x_{1}, x_{2})}[\textup{log } p_{\theta_{x_{1}}}(x_{1} | z)] + E_{q_{\phi}(z | x_{1}, x_{2})}[\textup{log } p_{\theta_{x_{2}}}(x_{2} | z)]
+\end{multline}
+
+The equation above has two reconstruction terms, one for each modality. As with VAEs, we have $q_{\theta}(z | x_{1}, x_{2})$. as the encoder and $p_{\theta_{x_{1}}}(x_{1} | z)$ and $p_{\theta_{x_{2}}}(x_{2} | z)$ as decoders.
+
+\begin{figure}[!h]
+\centering
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=.75\linewidth]{graph.pdf}
+        \caption{}
+        \label{fig:diagram:graph}
+    \end{subfigure}\hspace{5mm}
+    \begin{subfigure}[b]{.10\linewidth}
+        \includegraphics[width=.75\linewidth]{modelv2}
+        \caption{}
+        \label{fig:diagram:modelv2}
+    \end{subfigure}\hspace{5mm}
+    \begin{subfigure}[b]{.10\linewidth}
+        \includegraphics[width=.75\linewidth]{modelv1}
+        \caption{}
+        \label{fig:diagram:modelv1}
+    \end{subfigure}\hspace{5mm}
+    \begin{subfigure}[b]{.15\linewidth}
+        \includegraphics[width=.75\linewidth]{modelv3}
+        \caption{}
+        \label{fig:diagram:modelv3}
+    \end{subfigure}
+    \caption{(a) Graphical model of the MMVAE. Gray circles represent observed variables. The white circles represent latent variables. (b) MMVAE when modality 2 is missing. When only 1 modality is present, we ignore the PoG (product of Gaussians). (c) MMVAE when modality 1 is missing. (d) MMVAE when both modalities exist. $E_{1}$ and $E_{2}$ represent the two encoders: $q_{\phi_{x_{1}}}(z | x_{1})$ and $q_{\phi_{x_{2}}}(z | x_{2})$. Regardless if modalities are missing, we optimize the parameters of $E_{1}$ and $E_{2}$.}
+    \label{fig:diagram}
+\end{figure}
 
 \bibliographystyle{abbrvnat}
 {\small
