@@ -194,8 +194,8 @@ if __name__ == "__main__":
     os.makedirs(supervision_dir)
     print('Created directory: %s' % supervision_dir)
 
-    for weak_perc in [0, 1, 2, 5, 10, 25, 50, 100]:
-        perc_dir = os.path.join(supervision_dir, 'weak_perc_%d' % weak_perc)
+    for weak_perc in [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]:
+        perc_dir = os.path.join(supervision_dir, 'weak_perc_{}'.format(weak_perc))
         if os.path.isdir(perc_dir):
             shutil.rmtree(perc_dir)
         os.makedirs(perc_dir)
