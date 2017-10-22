@@ -24,7 +24,7 @@ from torchvision import transforms, datasets
 from model import MultimodalVAE
 from train import AverageMeter
 from train import save_checkpoint, load_checkpoint
-from train import loss_function
+from train import joint_loss_function, image_loss_function, text_loss_function
 
 
 def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, lr=1e-3, 
@@ -59,26 +59,16 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
     optimizer = optim.Adam(vae.parameters(), lr=lr)
 
 
-    def loss_function(recon_image, image, recon_text, text, mu, logvar):
-        image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
-        text_BCE = F.nll_loss(recon_text, text)
-
-        # see Appendix B from VAE paper:
-        # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-        # https://arxiv.org/abs/1312.6114
-        # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        KLD /= args.batch_size * 784
-        return image_BCE + text_BCE + KLD
-    
-
     def train(epoch):
         random.seed(42)
         np.random.seed(42)  # important to have the same seed
                             # in order to make the same choices for weak supervision
                             # otherwise, we end up showing different examples over epochs
         vae.train()
-        loss_meter = AverageMeter()
+
+        joint_loss_meter = AverageMeter()
+        image_loss_meter = AverageMeter()
+        text_loss_meter = AverageMeter()
 
         for batch_idx, (image, text) in enumerate(train_loader):
             if cuda:
@@ -89,48 +79,44 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             
             # for each batch, use 3 types of examples (joint, image-only, and text-only)
             # this way, we can hope to reconstruct both modalities from one
-            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
-            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
-            # combine all of the batches (no need to reorder; we show the model all at once)
-            recon_image = torch.cat((recon_image_2, recon_image_3))
-            recon_text = torch.cat((recon_text_2, recon_text_3))
-            mu = torch.cat((mu_2, mu_3))
-            logvar = torch.cat((logvar_2, logvar_3))
-            # combine all of the input image/texts
-            image_nx = torch.cat((image, image))
-            text_nx = torch.cat((text, text))
-            n = 2
+            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
+            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+
+            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
+                                         batch_size=batch_size)
+            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
+                                        batch_size=batch_size)  
+            loss = loss_2 + loss_3          
 
             # if we flip(weak_perc), then we show a paired relation example.
             flip = np.random.random()
             if flip < weak_perc:
                 recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-                recon_image = torch.cat((recon_image, recon_image_1))
-                recon_text = torch.cat((recon_text, recon_text_1))
-                mu = torch.cat((mu, mu_1))
-                logvar = torch.cat((logvar, logvar_1))
-                image_nx = torch.cat((image_nx, image))
-                text_nx = torch.cat((text_nx, text))
-                n = 3
-                import pdb; pdb.set_trace()
+                loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
+                                             batch_size=args.batch_size)
+                loss = loss + loss_1
 
-            loss = loss_function(recon_image, image_nx, recon_text, text_nx, mu, logvar)
             loss.backward()
-            loss_meter.update(loss.data[0], len(image) * n)
+            joint_loss_meter.update(loss_1.data[0], len(image))
+            image_loss_meter.update(loss_2.data[0], len(image))
+            text_loss_meter.update(loss_3.data[0], len(text))
             optimizer.step()
 
             if batch_idx % log_interval == 0:
-                print('[Weak {:.0f}%] Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                print('[Weak {:.0f}%] Train Epoch: {} [{}/{} ({:.0f}%)]\tJoint Loss: {:.6f}\tImage Loss: {:.6f}\tText Loss: {:.6f}'.format(
                     100. * weak_perc, epoch, batch_idx * len(image), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss_meter.avg))
+                    100. * batch_idx / len(train_loader), joint_loss_meter.avg,
+                    image_loss_meter.avg, text_loss_meter.avg))
 
-        print('====> [Weak {:.0f}%] Epoch: {} Average loss: {:.4f}'.format(
-            100. * weak_perc, epoch, loss_meter.avg))
+        print('====> [Weak {:.0f}%] Epoch: {} Joint loss: {:.4f}\tImage loss: {:.4f}\tText loss: {:.4f}'.format(
+            100. * weak_perc, epoch, joint_loss_meter.avg, image_loss_meter.avg, text_loss_meter.avg))
 
 
     def test():
         vae.eval()
-        test_loss = 0
+        test_joint_loss = 0
+        test_image_loss = 0
+        test_text_loss = 0
 
         for batch_idx, (image, text) in enumerate(test_loader):
             if cuda:
@@ -139,27 +125,36 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             image = image.view(-1, 784)  # flatten image
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
-            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
-            recon_image = torch.cat((recon_image_1, recon_image_2, recon_image_3))
-            recon_text = torch.cat((recon_text_1, recon_text_2, recon_text_3))
-            mu = torch.cat((mu_1, mu_2, mu_3))
-            logvar = torch.cat((logvar_1, logvar_2, logvar_3))
-            image_3x = torch.cat((image, image, image))
-            text_3x = torch.cat((text, text, text))
-            
-            loss = loss_function(recon_image, image_3x, recon_text, text_3x, mu, logvar)
-            test_loss += loss.data[0]
+            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
+            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
 
+            loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
+                                         batch_size=args.batch_size)
+            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
+                                         batch_size=args.batch_size)
+            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
+                                        batch_size=args.batch_size)
+            
+            test_joint_loss += loss_1.data[0]
+            test_image_loss += loss_2.data[0]
+            test_text_loss += loss_3.data[0]
+
+        test_loss = test_joint_loss + test_image_loss + test_text_loss
+        test_joint_loss /= len(test_loader.dataset)
+        test_image_loss /= len(test_loader.dataset)
+        test_text_loss /= len(test_loader.dataset)
         test_loss /= len(test_loader.dataset)
-        print('====> [Weak {:.0f}%] Test set loss: {:.4f}'.format(100. * weak_perc, test_loss))
-        return test_loss
+
+        print('====> [Weak {:.0f}%] Test joint loss: {:.4f}\timage loss: {:.4f}\ttext loss:{:.4f}'.format(
+            100. * weak_perc, test_joint_loss, test_image_loss, test_text_loss))
+
+        return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
 
 
     best_loss = sys.maxint
     for epoch in range(1, epochs + 1):
         train(epoch)
-        loss = test()
+        loss, (joint_loss, image_loss, text_loss) = test()
 
         is_best = loss < best_loss
         best_loss = min(loss, best_loss)
@@ -167,6 +162,9 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
         save_checkpoint({
             'state_dict': vae.state_dict(),
             'best_loss': best_loss,
+            'joint_loss': joint_loss,
+            'image_loss': image_loss,
+            'text_loss': text_loss,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder=out_dir)     
 
