@@ -41,7 +41,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def loss_function(recon_x, x, mu, logvar, batch_size=128):
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 2500))
+    BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -62,8 +62,8 @@ if __name__ == "__main__":
                         help='size of the latent embedding')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=20, metavar='N',
-                        help='number of epochs to train (default: 20)')
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                        help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',

@@ -60,7 +60,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 2500))
+    image_BCE = F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     text_BCE = F.nll_loss(recon_text, text)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -72,7 +72,7 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
 
 
 def image_loss_function(recon_image, image, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 2500))
+    image_BCE = F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
