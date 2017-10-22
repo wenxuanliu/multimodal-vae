@@ -37,7 +37,7 @@ def charlist_tensor(charlist):
     return char_tensor(string)
     
 
-def longtensor_to_string(tensor):
+def tensor_to_string(tensor):
     """Identical to tensor_to_string but for LongTensors."""
     string = ''
     for i in range(tensor.size(0)):

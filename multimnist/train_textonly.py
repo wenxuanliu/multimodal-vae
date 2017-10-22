@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import os
 import shutil
 import sys
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -14,7 +15,8 @@ from torch.autograd import Variable
 from torchvision import transforms
 
 import datasets
-from utils import n_characters, max_length, char_tensor, charlist_tensor
+from utils import n_characters, max_length
+from utils import tensor_to_string, char_tensor, charlist_tensor
 from model import TextVAE
 from train import AverageMeter
 
@@ -158,5 +160,12 @@ if __name__ == "__main__":
             if args.cuda:
                sample = sample.cuda()
 
-            sample = vae.decoder.generate(sample).cpu()
-            np.save('./results/text_only/sample_text.npy', sample.data)
+            sample = vae.decoder.generate(sample).cpu().data.long()            
+            sample_texts = []
+            for i in xrange(sample.size(0)):
+                text = tensor_to_string(sample[i])
+                sample_texts.append(text)
+            
+            with open('./results/text_only/sample_text.txt', 'w') as fp:
+                fp.writelines(sample_texts)
+

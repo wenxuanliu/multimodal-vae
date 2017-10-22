@@ -275,18 +275,17 @@ class TextDecoder(nn.Module):
         """Like, but we are not given an input text"""
         batch_size = z.size(0)
         c_in = Variable(torch.LongTensor([SOS]).repeat(batch_size))
-        words = Variable(torch.zeros(batch_size, max_length, n_characters))
+        words = Variable(torch.zeros(batch_size, max_length))
         if self.use_cuda:
             c_in = c_in.cuda()
             words = words.cuda()
         h = self.z2h(z).unsqueeze(0).repeat(2, 1, 1)
         for i in xrange(max_length):
             c_out, h = self.step(i, z, c_in, h)
-            words[:, i] = c_out
-            top_i = torch.multinomial(c_out, 1)[0]   
-            c_in = Variable(torch.LongTensor([top_i]))
-            if self.use_cuda:
-                c_in = c_in.cuda()
+            sample = torch.multinomial(c_out, 1)
+            words[:, i] = sample
+            c_in = sample.squeeze(1) 
+
         return words
 
     def step(self, ix, z, c_in, h):
