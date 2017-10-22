@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import numpy as np
+
 import torch
 from torchvision import datasets, transforms
 
@@ -41,6 +43,9 @@ if __name__ == "__main__":
         y.append(weak_acc)
         print('Got accuracies for %s.' % dir_path)
 
+    x, y = np.array(x), np.array(y)
+    ix = np.argsort(x)
+    x, y = x[ix], y[ix]
 
     plt.figure()
     plt.plot(x, y, '-o')
