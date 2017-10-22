@@ -11,8 +11,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import datasets, transforms
+from torchvision import transforms
 
+import datasets
 from model import MultimodalVAE
 
 
@@ -41,7 +42,7 @@ def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
                         os.path.join(folder, 'model_best.pth.tar'))
 
 
-def load_checkpoint(file_path, n_latents=20, use_cuda=False):
+def load_checkpoint(file_path, use_cuda=False):
     """Return EmbedNet instance"""
     if use_cuda:
         checkpoint = torch.load(file_path)
@@ -49,7 +50,7 @@ def load_checkpoint(file_path, n_latents=20, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    vae = MultimodalVAE(n_latents=n_latents)
+    vae = MultimodalVAE(n_latents=checkpoint['n_latents'])
     vae.load_state_dict(checkpoint['state_dict'])
     
     if use_cuda:
@@ -59,25 +60,25 @@ def load_checkpoint(file_path, n_latents=20, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
+    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 2500))
     text_BCE = F.nll_loss(recon_text, text)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784  # for each pixel
+    KLD /= batch_size * 2500  # for each pixel
     return image_BCE + text_BCE + KLD
 
 
 def image_loss_function(recon_image, image, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
+    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784  # for each pixel
+    KLD /= batch_size * 2500  # for each pixel
     return image_BCE + KLD
 
 
@@ -112,12 +113,12 @@ if __name__ == "__main__":
 
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=True, download=True,
-                       transform=transforms.ToTensor()),
+        datasets.MultiMNIST('./data', train=True, download=True,
+                            transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=False, download=True,
-                       transform=transforms.ToTensor()),
+        datasets.MultiMNIST('./data', train=False, download=True,
+                            transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -138,7 +139,7 @@ if __name__ == "__main__":
             if args.cuda:
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
-            image = image.view(-1, 784)  # flatten image
+            image = image.view(-1, 2500)  # flatten image
             optimizer.zero_grad()
             
             # for each batch, use 3 types of examples (joint, image-only, and text-only)
@@ -180,7 +181,7 @@ if __name__ == "__main__":
             if args.cuda:
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
-            image = image.view(-1, 784)  # flatten image
+            image = image.view(-1, 2500)  # flatten image
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
             recon_image_2, _, mu_2, logvar_2 = vae(image=image)
@@ -225,4 +226,4 @@ if __name__ == "__main__":
             'text_loss': text_loss,
             'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, folder='./trained_models')     
+        }, is_best, folder='./trained_models')   
