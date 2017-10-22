@@ -15,12 +15,12 @@ from torchvision import datasets, transforms
 from train import load_checkpoint
 
 
-def test_mnist(model, loader, verbose=True):
+def test_mnist(model, loader, use_cuda=False, verbose=True):
     """Functionalize this so we can call it from our weakly-supervised experiments."""
     model.eval()
     correct = 0
     for image, text in loader:
-        if args.cuda:
+        if use_cuda:
             image, text = image.cuda(), text.cuda()
         image, text = Variable(image, volatile=True), Variable(text)
         image = image.view(-1, 784)
@@ -55,4 +55,4 @@ if __name__ == "__main__":
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
 
-    test_mnist(vae, loader)
+    test_mnist(vae, loader, use_cuda=args.cuda)

@@ -112,7 +112,8 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
                 image_nx = torch.cat((image_nx, image))
                 text_nx = torch.cat((text_nx, text))
                 n = 3
-            
+                import pdb; pdb.set_trace()
+
             loss = loss_function(recon_image, image_nx, recon_text, text_nx, mu, logvar)
             loss.backward()
             loss_meter.update(loss.data[0], len(image) * n)
