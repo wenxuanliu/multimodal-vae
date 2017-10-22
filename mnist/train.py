@@ -61,7 +61,6 @@ def load_checkpoint(file_path, n_latents=20, use_cuda=False):
 def loss_function(recon_image, image, recon_text, text, mu, logvar):
     image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
     text_BCE = F.nll_loss(recon_text, text)
-
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -69,6 +68,28 @@ def loss_function(recon_image, image, recon_text, text, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     KLD /= args.batch_size * 784
     return image_BCE + text_BCE + KLD
+
+
+def image_loss_function(recon_image, image, mu, logvar):
+    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
+    # see Appendix B from VAE paper:
+    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
+    # https://arxiv.org/abs/1312.6114
+    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    KLD /= args.batch_size * 784
+    return image_BCE + KLD
+
+
+def text_loss_function(recon_text, text, mu, logvar):
+    text_BCE = F.nll_loss(recon_text, text)
+    # see Appendix B from VAE paper:
+    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
+    # https://arxiv.org/abs/1312.6114
+    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    KLD /= args.batch_size * 784
+    return image_BCE + KLD
 
 
 if __name__ == "__main__":
