@@ -14,6 +14,7 @@ from torch.autograd import Variable
 from torchvision import transforms
 
 import datasets
+from utils import n_characters, char_tensor
 from model import TextVAE
 from train import AverageMeter
 
@@ -33,7 +34,7 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    vae = TextVAE(n_latents=checkpoint['n_latents'])
+    vae = TextVAE(checkpoint['n_latents'], use_cuda=use_cuda)
     vae.load_state_dict(checkpoint['state_dict'])
     
     return vae
@@ -89,7 +90,7 @@ if __name__ == "__main__":
                             transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
 
-    vae = TextVAE(n_latents=args.n_latents)
+    vae = TextVAE(args.n_latents, use_cuda=args.cuda)
     if args.cuda:
         vae.cuda()
 
@@ -100,7 +101,10 @@ if __name__ == "__main__":
         vae.train()
         loss_meter = AverageMeter()
 
-        for batch_idx, (data, _) in enumerate(train_loader):
+        for batch_idx, (_, data) in enumerate(train_loader):
+            data = ''.join([str(i) for i in data])
+            import pdb; pdb.set_trace()
+            data = char_tensor(data)
             data = Variable(data)
             if args.cuda:
                 data = data.cuda()
@@ -121,7 +125,7 @@ if __name__ == "__main__":
     def test():
         vae.eval()
         test_loss = 0
-        for i, (data, _) in enumerate(test_loader):
+        for i, (_, data) in enumerate(test_loader):
             if args.cuda:
                 data = data.cuda()
             data = Variable(data, volatile=True)

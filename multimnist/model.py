@@ -113,10 +113,10 @@ class ImageVAE(nn.Module):
 
 
 class TextVAE(nn.Module):
-    def __init__(self, n_latents=20):
+    def __init__(self, n_latents=20, use_cuda=False):
         super(TextVAE, self).__init__()
-        self.encoder = TextEncoder(n_latents)
-        self.decoder = TextDecoder(n_latents)
+        self.encoder = TextEncoder(n_latents, n_characters)
+        self.decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.n_latents = n_latents
 
     def encode(self, x):
@@ -193,6 +193,7 @@ class TextEncoder(nn.Module):
 
     def forward(self, x):
         n_latents = self.n_latents
+        import pdb; pdb.set_trace()
         x = self.embed(x).unsqueeze(1)
         x = F.relu(x)
         x, h = self.gru(x, None)
