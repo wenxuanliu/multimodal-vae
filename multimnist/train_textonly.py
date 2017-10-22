@@ -14,7 +14,7 @@ from torch.autograd import Variable
 from torchvision import transforms
 
 import datasets
-from utils import n_characters, char_tensor
+from utils import n_characters, max_length, char_tensor, charlist_tensor
 from model import TextVAE
 from train import AverageMeter
 
@@ -41,13 +41,15 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def loss_function(recon_x, x, mu, logvar, batch_size=128):
-    BCE = F.nll_loss(recon_text, text)
+    recon_x = recon_x.view(-1, recon_x.size(2))
+    x = x.view(-1)
+    BCE = F.nll_loss(recon_x, x)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50  # for each embedding unit
+    KLD /= batch_size * 50 * max_length  # for each embedding unit
     return BCE + KLD
 
 
@@ -83,11 +85,13 @@ if __name__ == "__main__":
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=True, download=True,
-                            transform=transforms.ToTensor()),
+                            transform=transforms.ToTensor(),
+                            target_transform=charlist_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=False, download=True, 
-                            transform=transforms.ToTensor()),
+                            transform=transforms.ToTensor(),
+                            target_transform=charlist_tensor),
         batch_size=args.batch_size, shuffle=True)
 
     vae = TextVAE(args.n_latents, use_cuda=args.cuda)
@@ -102,9 +106,6 @@ if __name__ == "__main__":
         loss_meter = AverageMeter()
 
         for batch_idx, (_, data) in enumerate(train_loader):
-            data = ''.join([str(i) for i in data])
-            import pdb; pdb.set_trace()
-            data = char_tensor(data)
             data = Variable(data)
             if args.cuda:
                 data = data.cuda()

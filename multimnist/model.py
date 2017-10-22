@@ -14,8 +14,8 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
-from utils import n_characters
-from utils import SOS, EOS
+from utils import n_characters, max_length
+from utils import SOS, FILL
 
 
 class MultimodalVAE(nn.Module):
@@ -103,8 +103,8 @@ class ImageVAE(nn.Module):
         else:  # return mean during inference
             return mu
 
-    def decode(self, x):
-        return self.decoder(x)
+    def decode(self, z):
+        return self.decoder(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
@@ -130,13 +130,13 @@ class TextVAE(nn.Module):
         else:  # return mean during inference
             return mu
 
-    def decode(self, x):
-        return self.decoder(x)
+    def decode(self, z, x):
+        return self.decoder(z, x)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
-        return self.decode(z), mu, logvar
+        return self.decode(z, x), mu, logvar
 
 
 class ImageEncoder(nn.Module):
@@ -193,13 +193,11 @@ class TextEncoder(nn.Module):
 
     def forward(self, x):
         n_latents = self.n_latents
-        import pdb; pdb.set_trace()
-        x = self.embed(x).unsqueeze(1)
-        x = F.relu(x)
+        x = self.embed(x)
+        x = x.transpose(0, 1)  # GRU expects (seq_len, batch, ...)
         x, h = self.gru(x, None)
         x = x[-1]  # take only the last value
         x = x[:, :50] + x[:, 50:]  # sum bidirectional outputs
-        x = F.relu(x)
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -253,61 +251,43 @@ class TextDecoder(nn.Module):
         self.n_characters = n_characters
 
     def forward(self, z, x):
-        n_steps = len(x)
         n_latents = self.n_latents
         n_characters = self.n_characters
-
+        batch_size = z.size(0)
         # first input character is SOS
-        c_in = Variable(torch.LongTensor([SOS]))
+        c_in = Variable(torch.LongTensor([SOS]).repeat(batch_size))
         # store output word here
-        w = Variable(torch.zeros(n_steps, 1, n_characters))
+        words = Variable(torch.zeros(batch_size, max_length, n_characters))
         if self.use_cuda:
             c_in = c_in.cuda()
-            w = w.cuda()
+            words = words.cuda()
         # get hiddens from latents
         h = self.z2h(z).unsqueeze(0).repeat(2, 1, 1)
         # look through n_steps and generate characters
-        for i in xrange(n_steps):
+        for i in xrange(max_length):
             c_out, h = self.step(i, z, c_in, h)
-            w[i] = c_out
-            c_in = x[i]
+            words[:, i] = c_out
+            c_in = x[:, i]
 
-        return w.squeeze(1)
+        return words  # (batch_size, seq_len, ...)
 
-    def generate(self, z, n_steps):
+    def generate(self, z):
         """Like, but we are not given an input text"""
+        batch_size = z.size(0)
         c_in = Variable(torch.LongTensor([SOS]))
-        w = Variable(torch.zeros(n_steps, 1, n_characters))
+        words = Variable(torch.zeros(batch_size, max_length, n_characters))
         if self.use_cuda:
             c_in = c_in.cuda()
-            w = w.cuda()
+            words = words.cuda()
         h = self.z2h(z).unsqueeze(0).repeat(2, 1, 1)
-        for i in xrange(n_steps):
+        for i in xrange(max_length):
             c_out, h = self.step(i, z, c_in, h)
-            w[i] = c_out
-            c_in, top_i = self.sample(c_out, False)
-            if top_i == EOS:
-                break
-
-        return c_out.squeeze(1)
-
-    def sample(self, c_out, deterministic=False):
-        """Sample a word from output distribution.
-
-        :param deterministic: if True, return argmax
-        """
-        if deterministic:
-            top_i = c_out.data.topk(1)[1][0][0]
-        else:
-            # sample from multinomial
-            probas = c_out.data.view(-1).exp()
-            top_i = torch.multinomial(probas, 1)[0]
-
-        sample = Variable(torch.LongTensor([top_i]))
-        if self.use_cuda:
-            sample = sample.cuda()
-
-        return sample, top_i
+            words[:, i] = c_out
+            top_i = torch.multinomial(c_out, 1)[0]   
+            c_in = Variable(torch.LongTensor([top_i]))
+            if self.use_cuda:
+                c_in = c_in.cuda()
+        return words
 
     def step(self, ix, z, c_in, h):
         c_in = F.relu(self.embed(c_in))
@@ -317,4 +297,5 @@ class TextDecoder(nn.Module):
         c_out = c_out.squeeze(0)
         c_out = torch.cat((c_out, z), dim=1)
         c_out = self.h2o(c_out)
+        c_out = F.log_softmax(c_out)
         return c_out, h
