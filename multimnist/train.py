@@ -12,9 +12,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import transforms
+from torchvision.utils import save_image
 
 import datasets
 from model import MultimodalVAE
+
+from utils import n_characters, max_length
+from utils import tensor_to_string
 
 
 class AverageMeter(object):
@@ -50,7 +54,7 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    vae = MultimodalVAE(n_latents=checkpoint['n_latents'])
+    vae = MultimodalVAE(n_latents=checkpoint['n_latents'], use_cuda=use_cuda)
     vae.load_state_dict(checkpoint['state_dict'])
     
     if use_cuda:
@@ -67,7 +71,7 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 2500  # for each pixel
+    KLD /= batch_size * (2500 + 50 * max_length) # for each pixel + embedding unit
     return image_BCE + text_BCE + KLD
 
 
@@ -89,7 +93,7 @@ def text_loss_function(recon_text, text, mu, logvar, batch_size=128):
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50  # for each embedding unit
+    KLD /= batch_size * 50 * max_length  # for each embedding unit
     return text_BCE + KLD
 
 
@@ -114,15 +118,17 @@ if __name__ == "__main__":
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=True, download=True,
-                            transform=transforms.ToTensor()),
+                            transform=transforms.ToTensor(),
+                            target_transform=charlist_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=False, download=True,
-                            transform=transforms.ToTensor()),
+                            transform=transforms.ToTensor(),
+                            target_transform=charlist_tensor),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    vae = MultimodalVAE(n_latents=args.n_latents)
+    vae = MultimodalVAE(args.n_latents, use_cuda=args.cuda)
     if args.cuda:
         vae.cuda()
 
@@ -227,3 +233,21 @@ if __name__ == "__main__":
             'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')   
+
+        if is_best:
+            sample = Variable(torch.randn(64, 20))
+            if args.cuda:
+               sample = sample.cuda()
+
+            image_sample = vae.image_decoder(sample).cpu().data
+            save_image(image_sample.view(64, 1, 50, 50),
+                       './results/sample_image.png')
+
+            text_sample = vae.text_decoder.generate(sample).cpu().data.long()
+            sample_texts = []
+            for i in xrange(sample.size(0)):
+                text = tensor_to_string(sample[i])
+                sample_texts.append(text)
+
+            with open('./results/sample_text.txt', 'w') as fp:
+                fp.writelines(sample_texts)

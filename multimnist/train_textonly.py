@@ -16,7 +16,7 @@ from torchvision import transforms
 
 import datasets
 from utils import n_characters, max_length
-from utils import tensor_to_string, char_tensor, charlist_tensor
+from utils import tensor_to_string, charlist_tensor
 from model import TextVAE
 from train import AverageMeter
 

@@ -19,12 +19,12 @@ from utils import SOS, FILL
 
 
 class MultimodalVAE(nn.Module):
-    def __init__(self, n_latents=20):
+    def __init__(self, n_latents=20, use_cuda=False):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
         self.text_encoder = TextEncoder(n_latents)
-        self.text_decoder = TextDecoder(n_latents)
+        self.text_decoder = TextDecoder(n_latents, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
