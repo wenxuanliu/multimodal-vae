@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import datasets, transforms
 
 from model import MultimodalVAE
 
@@ -89,7 +89,7 @@ def text_loss_function(recon_text, text, mu, logvar, batch_size=128):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     KLD /= batch_size * 784
-    return image_BCE + KLD
+    return text_BCE + KLD
 
 
 if __name__ == "__main__":
@@ -166,7 +166,7 @@ if __name__ == "__main__":
                     100. * batch_idx / len(train_loader), joint_loss_meter.avg,
                     image_loss_meter.avg, text_loss_meter.avg))
 
-        print('====> Epoch: {} Joint loss: {:.4f}\tImage loss: {:.4f}\tText loss: {:.4f}'.format(
+        print('====> Epoch: {}\tJoint loss: {:.4f}\tImage loss: {:.4f}\tText loss: {:.4f}'.format(
             epoch, joint_loss_meter.avg, image_loss_meter.avg, text_loss_meter.avg))
 
 
@@ -203,7 +203,7 @@ if __name__ == "__main__":
         test_text_loss /= len(test_loader.dataset)
         test_loss /= len(test_loader.dataset)
         
-        print('====> Test joint loss: {:.4f}\timage loss: {:.4f}\ttext loss:{:.4f}'.format(
+        print('====> Test Epoch\tJoint loss: {:.4f}\tImage loss: {:.4f}\tText loss:{:.4f}'.format(
             test_joint_loss, test_image_loss, test_text_loss))
         
         return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
