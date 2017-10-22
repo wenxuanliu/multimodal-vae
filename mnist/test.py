@@ -15,7 +15,7 @@ from torchvision import datasets, transforms
 from train import load_checkpoint
 
 
-def test_mnist(model, loader):
+def test_mnist(model, loader, verbose=True):
     """Functionalize this so we can call it from our weakly-supervised experiments."""
     model.eval()
     correct = 0
@@ -29,8 +29,9 @@ def test_mnist(model, loader):
         pred = recon_text.data.max(1, keepdim=True)[1]
         correct += pred.eq(text.data.view_as(pred)).cpu().sum()
 
-    print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
-        correct, len(loader.dataset), 100. * correct / len(loader.dataset)))
+    if verbose:
+        print('\nTest set: Accuracy: {}/{} ({:.0f}%)\n'.format(
+            correct, len(loader.dataset), 100. * correct / len(loader.dataset)))
 
     return correct / float(len(loader.dataset))
 
