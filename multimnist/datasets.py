@@ -13,6 +13,7 @@ from __future__ import absolute_import
 
 import os
 import numpy as np
+from PIL import Image
 from scipy.misc import imresize
 
 import torch

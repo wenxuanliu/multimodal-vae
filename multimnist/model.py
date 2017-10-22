@@ -159,7 +159,10 @@ class ImageEncoder(nn.Module):
             nn.BatchNorm2d(20),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(320, 50),
+            nn.Linear(1620, 400),
+            nn.ReLU(),
+            nn.Dropout(p=0.1),
+            nn.Linear(400, 50),
             nn.ReLU(),
             nn.Dropout(p=0.1),
             nn.Linear(50, n_latents * 2)
@@ -169,7 +172,7 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1)
+        x = x.view(-1, 20 * 9 * 9)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -211,9 +214,9 @@ class ImageDecoder(nn.Module):
         )
         self.hallucinate = nn.Sequential(
             nn.ConvTranspose2d(10, 20, kernel_size=12),
+            nn.ConvTranspose2d(20, 20, kernel_size=12),
             nn.ConvTranspose2d(20, 20, kernel_size=10),
-            nn.ConvTranspose2d(20, 20, kernel_size=8),
-            nn.Conv2d(20, 3, kernel_size=3),
+            nn.Conv2d(20, 1, kernel_size=2),
         )
 
     def forward(self, z):

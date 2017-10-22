@@ -73,16 +73,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    if os.path.isdir('./trained_models'):
+    if not os.path.isdir('./trained_models'):
         os.makedirs('./trained_models')
 
-    if os.path.isdir('./trained_models/image_only'):
+    if not os.path.isdir('./trained_models/image_only'):
         os.makedirs('./trained_models/image_only')
 
-    if os.path.isdir('./results'):
+    if not os.path.isdir('./results'):
         os.makedirs('./results')
 
-    if os.path.isdir('./results/image_only'):
+    if not os.path.isdir('./results/image_only'):
         os.makedirs('./results/image_only')
 
     train_loader = torch.utils.data.DataLoader(
