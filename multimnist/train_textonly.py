@@ -158,5 +158,5 @@ if __name__ == "__main__":
             if args.cuda:
                sample = sample.cuda()
 
-            sample = vae.decode(sample).cpu()
+            sample = vae.decoder.generate(sample).cpu()
             np.save('./results/text_only/sample_text.npy', sample.data)

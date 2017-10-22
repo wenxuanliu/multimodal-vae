@@ -274,7 +274,7 @@ class TextDecoder(nn.Module):
     def generate(self, z):
         """Like, but we are not given an input text"""
         batch_size = z.size(0)
-        c_in = Variable(torch.LongTensor([SOS]))
+        c_in = Variable(torch.LongTensor([SOS]).repeat(batch_size))
         words = Variable(torch.zeros(batch_size, max_length, n_characters))
         if self.use_cuda:
             c_in = c_in.cuda()
