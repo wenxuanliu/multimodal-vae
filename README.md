@@ -15,7 +15,7 @@ Train MMVAE on MNIST with using images as the first modality and labels as text 
 #### Image Samples Conditioned on Label 9
 Fix the second modality to be 9 and generate image samples from the conditional distribution.
 
-![embedding](./mnist/static/sample_image.png)
+![embedding](./mnist/static/sample_image_conditioned_9.png)
 
 #### Weak Supervision
 Only show a fixed percentage of paired (image, label) data, and see how MMVAE does on predicting MNIST labels (generating text). 
