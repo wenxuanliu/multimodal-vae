@@ -87,7 +87,9 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
                                         batch_size=batch_size)  
             loss = loss_2 + loss_3          
-
+            image_loss_meter.update(loss_2.data[0], len(image))
+            text_loss_meter.update(loss_3.data[0], len(text))
+            
             # if we flip(weak_perc), then we show a paired relation example.
             flip = np.random.random()
             if flip < weak_perc:
@@ -95,11 +97,9 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
                 loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
                                              batch_size=args.batch_size)
                 loss = loss + loss_1
+                joint_loss_meter.update(loss_1.data[0], len(image))
 
             loss.backward()
-            joint_loss_meter.update(loss_1.data[0], len(image))
-            image_loss_meter.update(loss_2.data[0], len(image))
-            text_loss_meter.update(loss_3.data[0], len(text))
             optimizer.step()
 
             if batch_idx % log_interval == 0:
