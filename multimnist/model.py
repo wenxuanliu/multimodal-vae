@@ -166,7 +166,7 @@ class ImageEncoder(nn.Module):
         )
         self.n_latents = n_latents
 
-    def forward(self, x)
+    def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
         x = x.view(-1)

@@ -158,8 +158,8 @@ def make_dataset(root, folder, training_file, test_file):
     train_x, train_y = mk_dataset(60000, train_mnist, 0, 2, 50)
     test_x, test_y = mk_dataset(10000, test_mnist, 0, 2, 50)
     
-    train_x, train_y = torch.load(train_x).byte(), torch.load(train_y).long()
-    test_x, test_y = torch.load(test_x).byte(), torch.load(test_y).long()
+    train_x = torch.from_numpy(train_x).byte()
+    test_x = torch.from_numpy(test_x).byte()
 
     training_set = (train_x, train_y)
     test_set = (test_x, test_y)
