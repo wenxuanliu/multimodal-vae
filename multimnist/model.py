@@ -23,8 +23,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        self.text_encoder = TextEncoder(n_latents)
-        self.text_decoder = TextDecoder(n_latents, use_cuda=use_cuda)
+        self.text_encoder = TextEncoder(n_latents, n_characters)
+        self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
@@ -38,14 +38,14 @@ class MultimodalVAE(nn.Module):
     def encode_image(self, x):
         return self.image_encoder(x)
 
-    def decode_image(self, x):
-        return self.image_decoder(x)
+    def decode_image(self, z):
+        return self.image_decoder(z)
 
     def encode_text(self, x):
         return self.text_encoder(x)
 
-    def decode_text(self, x):
-        return self.text_decoder(x)
+    def decode_text(self, z):
+        return self.text_decoder(z)
 
     def forward(self, image=None, text=None):
         # can't just put nothing
@@ -130,13 +130,13 @@ class TextVAE(nn.Module):
         else:  # return mean during inference
             return mu
 
-    def decode(self, z, x):
-        return self.decoder(z, x)
+    def decode(self, z):
+        return self.decoder(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
-        return self.decode(z, x), mu, logvar
+        return self.decode(z), mu, logvar
 
 
 class ImageEncoder(nn.Module):
@@ -250,7 +250,7 @@ class TextDecoder(nn.Module):
         self.n_latents = n_latents
         self.n_characters = n_characters
 
-    def forward(self, z, x):
+    def forward(self, z):
         n_latents = self.n_latents
         n_characters = self.n_characters
         batch_size = z.size(0)
@@ -266,27 +266,16 @@ class TextDecoder(nn.Module):
         # look through n_steps and generate characters
         for i in xrange(max_length):
             c_out, h = self.step(i, z, c_in, h)
+            sample = torch.max(c_out, dim=1)[1]
             words[:, i] = c_out
-            c_in = x[:, i]
+            c_in = sample
 
         return words  # (batch_size, seq_len, ...)
 
     def generate(self, z):
         """Like, but we are not given an input text"""
-        batch_size = z.size(0)
-        c_in = Variable(torch.LongTensor([SOS]).repeat(batch_size))
-        words = Variable(torch.zeros(batch_size, max_length))
-        if self.use_cuda:
-            c_in = c_in.cuda()
-            words = words.cuda()
-        h = self.z2h(z).unsqueeze(0).repeat(2, 1, 1)
-        for i in xrange(max_length):
-            c_out, h = self.step(i, z, c_in, h)
-            sample = torch.multinomial(c_out, 1)
-            words[:, i] = sample
-            c_in = sample.squeeze(1) 
-
-        return words
+        words = self.forward(z)
+        return torch.multinomial(words, dim=2)
 
     def step(self, ix, z, c_in, h):
         c_in = F.relu(self.embed(c_in))
@@ -298,3 +287,19 @@ class TextDecoder(nn.Module):
         c_out = self.h2o(c_out)
         c_out = F.log_softmax(c_out)
         return c_out, h
+
+
+class ProductOfExperts(nn.Module):
+    """Return parameters for product of independent experts.
+    See https://arxiv.org/pdf/1410.7827.pdf for equations.
+
+    :param mu: M x D for M experts
+    :param logvar: M x D for M experts
+    """
+    def forward(self, mu, logvar, eps=1e-8):
+        var = torch.exp(logvar) + eps
+        pd_mu = torch.sum(mu * var, dim=0) / torch.sum(var, dim=0)
+        pd_var = 1 / torch.sum(1 / var, dim=0)
+        pd_logvar = torch.log(pd_var)
+        return pd_mu, pd_logvar
+
