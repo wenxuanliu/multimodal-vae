@@ -58,13 +58,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    n_latents = torch.load(args.model_path)['n_latents']
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
+    if args.cuda:
+        vae.cuda()
 
     # mode 1: unconditional generation
     if not args.condition_on_image and not args.condition_on_text:
         mu = Variable(torch.Tensor([0]))
         std = Variable(torch.Tensor([1]))
+        if args.cuda:
+            mu = mu.cuda()
+            std = std.cuda()
 
     # mode 2: generate conditioned on image
     elif args.condition_on_image and not args.condition_on_text:
@@ -97,7 +103,7 @@ if __name__ == "__main__":
         std = logvar.mul(0.5).exp_()
 
     # sample from uniform gaussian
-    sample = Variable(torch.randn(args.n_samples, args.n_latents))
+    sample = Variable(torch.randn(args.n_samples, n_latents))
     if args.cuda:
         sample = sample.cuda()
 
@@ -121,5 +127,5 @@ if __name__ == "__main__":
     # save text samples to filesystem
     with open('./results/sample_texts.txt', 'w') as fp:
         for i in xrange(text_recon.size(0)):
-            text_recon_str = tensor_to_string(text_recon[i])
+            text_recon_str = tensor_to_string(text_recon[i].data)
             fp.write('%s\n' % text_recon_str)

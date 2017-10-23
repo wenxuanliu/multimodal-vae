@@ -40,12 +40,12 @@ def test_multimnist(model, loader, use_cuda=False, verbose=True):
                                     np.sum(gt == FILL, axis=1)))
 
     _char_correct = char_correct / (len(loader.dataset) * max_length)
-    _len_correct = len_correct = len(loader.dataset)
+    _len_correct = len_correct / len(loader.dataset)
 
     if verbose:
         print('\nTest set: Character Accuracy: {}/{} ({:.0f}%)\tLength Accuracy: {}/{} ({:.0f}%)\n'.format(
-            char_correct, len(loader.dataset) * max_length, 100. * _char_correct, 
-            len_correct, len(loader.dataset), 100. * _len_correct))
+            int(char_correct), len(loader.dataset) * max_length, 100. * _char_correct, 
+            int(len_correct), len(loader.dataset), 100. * _len_correct))
 
     return char_correct, len_correct
 
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         datasets.MultiMNIST('./data', train=False, download=True,
                             transform=transforms.ToTensor(),
                             target_transform=charlist_tensor),
-        batch_size=args.batch_size, shuffle=True)
+        batch_size=128, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
