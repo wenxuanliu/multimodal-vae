@@ -150,14 +150,14 @@ def load_mnist():
     return train_data, test_data
 
 
-def make_dataset(root, folder, training_file, test_file):
+def make_dataset(root, folder, training_file, test_file, min_digits=0, max_digits=2):
     if not os.path.isdir(os.path.join(root, folder)):
         os.makedirs(os.path.join(root, folder))
 
     np.random.seed(681307)
     train_mnist, test_mnist = load_mnist()
-    train_x, train_y = mk_dataset(60000, train_mnist, 0, 2, 50)
-    test_x, test_y = mk_dataset(10000, test_mnist, 0, 2, 50)
+    train_x, train_y = mk_dataset(60000, train_mnist, min_digits, max_digits, 50)
+    test_x, test_y = mk_dataset(10000, test_mnist, min_digits, max_digits, 50)
     
     train_x = torch.from_numpy(train_x).byte()
     test_x = torch.from_numpy(test_x).byte()
@@ -173,6 +173,16 @@ def make_dataset(root, folder, training_file, test_file):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--min_digits', type=int, default=0, 
+                        help='minimum number of digits to add to an image')
+    parser.add_argument('--max_digits', type=int, default=2,
+                        help='maximum number of digits to add to an image')
+    parser.add_argument('--fix_loc', action='store_true', default=False,
+                        help='if True, fix the image to be in the center')
+    args = parser.parse_args()
     # Generate the training set and dump it to disk. (Note, this will
     # always generate the same data, else error out.)
-    make_dataset('./data', 'multimnist', 'training.pt', 'test.pt')
+    make_dataset('./data', 'multimnist', 'training.pt', 'test.pt',
+                 min_digits=args.min_digits, max_digits=args.max_digits)

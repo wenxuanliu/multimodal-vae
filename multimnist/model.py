@@ -159,7 +159,7 @@ class ImageEncoder(nn.Module):
 
     def forward(self, x):
         n_latents = self.n_latents
-        x = self.net(x)
+        x = self.net(x.view(-1, 2500))
         return x[:, :n_latents], x[:, n_latents:]
 
 

@@ -40,7 +40,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, batch_size=128):
+def loss_function(recon_x, x, mu, logvar, batch_size=128, kl_lambda=2500):
     BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
 
     # see Appendix B from VAE paper:
@@ -50,7 +50,7 @@ def loss_function(recon_x, x, mu, logvar, batch_size=128):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     
     # Normalise by same number of elements as in reconstruction
-    KLD /= batch_size * 2500
+    KLD = KLD / batch_size * kl_lambda
 
     return BCE + KLD
 
@@ -68,6 +68,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
+    parser.add_argument('--anneal_kl', action='store_true', default=False, 
+                        help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -102,6 +104,7 @@ if __name__ == "__main__":
 
 
     def train(epoch):
+        print('Using KL Lambda: {}'.format(kl_lambda))
         vae.train()
         loss_meter = AverageMeter()
 
@@ -111,7 +114,7 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar)
+            loss = loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -131,15 +134,24 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
+            test_loss += loss_function(recon_batch, data, mu, logvar,
+                                       kl_lambda=kl_lambda).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))
         return test_loss
 
 
+    kl_lambda = 1e-3
+    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
+        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+            try:
+                kl_lambda = next(schedule)
+            except:
+                pass
+
         train(epoch)
         loss = test()
 
