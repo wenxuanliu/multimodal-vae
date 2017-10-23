@@ -106,7 +106,9 @@ def sample_one(canvas_size, mnist, resize=True, translate=True):
         pad_width = ((pad_l, padding - pad_l), (pad_r, padding - pad_r))
         positioned = np.pad(resized, pad_width, 'constant', constant_values=0)
     else:
-        pad_width = ((padding // 2, padding // 2), (padding // 2, padding // 2))
+        pad_l = padding // 2
+        pad_r = padding // 2
+        pad_width = ((pad_l, padding - pad_l), (pad_r, padding - pad_r))
         positioned = np.pad(resized, pad_width, 'constant', constant_values=0)
     return positioned, label
 
