@@ -275,7 +275,10 @@ class TextDecoder(nn.Module):
     def generate(self, z):
         """Like, but we are not given an input text"""
         words = self.forward(z)
-        return torch.multinomial(words, dim=2)
+        batch_size = words.size(0)
+        char_size = words.size(2)
+        sample = torch.multinomial(words.view(-1, char_size), 1)
+        return sample.view(batch_size, max_length)
 
     def step(self, ix, z, c_in, h):
         c_in = F.relu(self.embed(c_in))

@@ -186,7 +186,6 @@ if __name__ == "__main__":
             if args.cuda:
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
-            image = image.view(-1, 2500)  # flatten image
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
             recon_image_2, _, mu_2, logvar_2 = vae(image=image)
@@ -245,7 +244,7 @@ if __name__ == "__main__":
             text_sample = vae.text_decoder.generate(sample).cpu().data.long()
             sample_texts = []
             for i in xrange(sample.size(0)):
-                text = tensor_to_string(sample[i])
+                text = tensor_to_string(text_sample[i])
                 sample_texts.append(text)
 
             with open('./results/sample_text.txt', 'w') as fp:
