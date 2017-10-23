@@ -140,41 +140,118 @@ class TextVAE(nn.Module):
 
 
 class ImageEncoder(nn.Module):
-    """This task is quite a bit harder than MNIST so we probably need 
-    to use an RNN of some form. This will be good to get us ready for
-    natural images.
-
-    :param n_latents: size of latent vector
-    """
+    """MNIST doesn't need CNN, so use a lightweight FNN"""
     def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 10, kernel_size=5),
-            nn.MaxPool2d(2),
+        self.net = nn.Sequential(
+            nn.Linear(2500, 1000),
+            nn.BatchNorm1d(1000),
             nn.ReLU(),
-            nn.BatchNorm2d(10),
-            nn.Conv2d(10, 20, kernel_size=5),
-            nn.MaxPool2d(2),
+            nn.Linear(1000, 400),
+            nn.BatchNorm1d(400),
             nn.ReLU(),
-            nn.BatchNorm2d(20),
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(1620, 400),
+            nn.Linear(400, 200),
+            nn.BatchNorm1d(200),
             nn.ReLU(),
-            nn.Dropout(p=0.1),
-            nn.Linear(400, 50),
-            nn.ReLU(),
-            nn.Dropout(p=0.1),
-            nn.Linear(50, n_latents * 2)
+            nn.Linear(200, n_latents * 2),
         )
         self.n_latents = n_latents
 
     def forward(self, x):
         n_latents = self.n_latents
-        x = self.features(x)
-        x = x.view(-1, 20 * 9 * 9)
-        x = self.classifier(x)
+        x = self.net(x)
         return x[:, :n_latents], x[:, n_latents:]
+
+
+class ImageDecoder(nn.Module):
+    def __init__(self, n_latents):
+        super(ImageDecoder, self).__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_latents, 200),
+            nn.BatchNorm1d(200),
+            nn.ReLU(),
+            nn.Linear(200, 400),
+            nn.BatchNorm1d(400),
+            nn.ReLU(),
+            nn.Linear(400, 1000),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(),
+            nn.Linear(1000, 2500),
+        )
+
+    def forward(self, z):
+        z = self.net(z)
+        z = F.sigmoid(z)
+        return z.view(-1, 1, 50, 50)
+
+
+# class ImageEncoder(nn.Module):
+#     """This task is quite a bit harder than MNIST so we probably need 
+#     to use an RNN of some form. This will be good to get us ready for
+#     natural images.
+
+#     :param n_latents: size of latent vector
+#     """
+#     def __init__(self, n_latents):
+#         super(ImageEncoder, self).__init__()
+#         self.features = nn.Sequential(
+#             nn.Conv2d(1, 10, kernel_size=5),
+#             nn.MaxPool2d(2),
+#             nn.ReLU(),
+#             nn.BatchNorm2d(10),
+#             nn.Conv2d(10, 20, kernel_size=5),
+#             nn.MaxPool2d(2),
+#             nn.ReLU(),
+#             nn.BatchNorm2d(20),
+#         )
+#         self.classifier = nn.Sequential(
+#             nn.Linear(1620, 400),
+#             nn.ReLU(),
+#             nn.Dropout(p=0.1),
+#             nn.Linear(400, 50),
+#             nn.ReLU(),
+#             nn.Dropout(p=0.1),
+#             nn.Linear(50, n_latents * 2)
+#         )
+#         self.n_latents = n_latents
+
+#     def forward(self, x):
+#         n_latents = self.n_latents
+#         x = self.features(x)
+#         x = x.view(-1, 20 * 9 * 9)
+#         x = self.classifier(x)
+#         return x[:, :n_latents], x[:, n_latents:]
+
+
+# class ImageDecoder(nn.Module):
+#     def __init__(self, n_latents):
+#         super(ImageDecoder, self).__init__()
+#         self.upsample = nn.Sequential(
+#             nn.Linear(n_latents, 50),
+#             nn.ReLU(),
+#             nn.Linear(50, 10 * 20 * 20),
+#             nn.ReLU(),
+#         )
+#         self.hallucinate = nn.Sequential(
+#             nn.ConvTranspose2d(10, 20, kernel_size=12),
+#             nn.ConvTranspose2d(20, 20, kernel_size=12),
+#             nn.ConvTranspose2d(20, 20, kernel_size=10),
+#             nn.Conv2d(20, 1, kernel_size=2),
+#         )
+
+#     def forward(self, z):
+#         # the input will be a vector of size |n_latents|
+#         z = self.upsample(z)
+#         z = z.view(-1, 10, 20, 20)
+#         z = self.hallucinate(z)
+#         return F.sigmoid(z)
+
+#     def generate(self, z):
+#         z = self.upsample(z)
+#         z = z.view(-1, 10, 20, 20)
+#         z = self.hallucinate(z)
+#         image = F.sigmoid(z)
+#         return image * 255.
 
 
 class TextEncoder(nn.Module):
@@ -200,37 +277,6 @@ class TextEncoder(nn.Module):
         x = x[:, :50] + x[:, 50:]  # sum bidirectional outputs
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
-
-
-class ImageDecoder(nn.Module):
-    def __init__(self, n_latents):
-        super(ImageDecoder, self).__init__()
-        self.upsample = nn.Sequential(
-            nn.Linear(n_latents, 50),
-            nn.ReLU(),
-            nn.Linear(50, 10 * 20 * 20),
-            nn.ReLU(),
-        )
-        self.hallucinate = nn.Sequential(
-            nn.ConvTranspose2d(10, 20, kernel_size=12),
-            nn.ConvTranspose2d(20, 20, kernel_size=12),
-            nn.ConvTranspose2d(20, 20, kernel_size=10),
-            nn.Conv2d(20, 1, kernel_size=2),
-        )
-
-    def forward(self, z):
-        # the input will be a vector of size |n_latents|
-        z = self.upsample(z)
-        z = z.view(-1, 10, 20, 20)
-        z = self.hallucinate(z)
-        return F.sigmoid(z)
-
-    def generate(self, z):
-        z = self.upsample(z)
-        z = z.view(-1, 10, 20, 20)
-        z = self.hallucinate(z)
-        image = F.sigmoid(z)
-        return image * 255.
 
 
 class TextDecoder(nn.Module):
