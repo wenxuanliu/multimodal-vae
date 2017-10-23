@@ -88,43 +88,54 @@ class MultiMNIST(Dataset):
                      self.training_file, self.test_file)
 
 
-def sample_one(canvas_size, mnist):
+def sample_one(canvas_size, mnist, resize=True, translate=True):
     i = np.random.randint(mnist['digits'].shape[0])
     digit = mnist['digits'][i]
     label = mnist['labels'][i]
-    scale = 0.1 * np.random.randn() + 1.3
-    resized = imresize(digit, 1. / scale)
+    if resize:  # resize only if user specified
+        scale = 0.1 * np.random.randn() + 1.3
+        resized = imresize(digit, 1. / scale)
+    else:
+        resized = digit
     w = resized.shape[0]
     assert w == resized.shape[1]
     padding = canvas_size - w
-    pad_l = np.random.randint(0, padding)
-    pad_r = np.random.randint(0, padding)
-    pad_width = ((pad_l, padding - pad_l), (pad_r, padding - pad_r))
-    positioned = np.pad(resized, pad_width, 'constant', constant_values=0)
+    if translate:  # translate only if user specified
+        pad_l = np.random.randint(0, padding)
+        pad_r = np.random.randint(0, padding)
+        pad_width = ((pad_l, padding - pad_l), (pad_r, padding - pad_r))
+        positioned = np.pad(resized, pad_width, 'constant', constant_values=0)
+    else:
+        pad_width = ((padding // 2, padding // 2), (padding // 2, padding // 2))
+        positioned = np.pad(resized, pad_width, 'constant', constant_values=0)
     return positioned, label
 
 
-def sample_multi(num_digits, canvas_size, mnist):
+def sample_multi(num_digits, canvas_size, mnist, resize=True, translate=True):
     canvas = np.zeros((canvas_size, canvas_size))
     labels = []
     for _ in range(num_digits):
-        positioned_digit, label = sample_one(canvas_size, mnist)
+        positioned_digit, label = sample_one(canvas_size, mnist, resize=resize,
+                                             translate=translate)
         canvas += positioned_digit
         labels.append(label)
     
     # Crude check for overlapping digits.
     if np.max(canvas) > 255:
-        return sample_multi(num_digits, canvas_size, mnist)
+        return sample_multi(num_digits, canvas_size, mnist, 
+                            resize=resize, translate=translate)
     else:
         return canvas, labels
 
 
-def mk_dataset(n, mnist, min_digits, max_digits, canvas_size):
+def mk_dataset(n, mnist, min_digits, max_digits, canvas_size, 
+               resize=True, translate=True):
     x = []
     y = []
     for _ in range(n):
         num_digits = np.random.randint(min_digits, max_digits + 1)
-        canvas, labels = sample_multi(num_digits, canvas_size, mnist)
+        canvas, labels = sample_multi(num_digits, canvas_size, mnist,
+                                      resize=resize, translate=translate)
         x.append(canvas)
         y.append(labels)
     return np.array(x, dtype=np.uint8), y
@@ -150,14 +161,17 @@ def load_mnist():
     return train_data, test_data
 
 
-def make_dataset(root, folder, training_file, test_file, min_digits=0, max_digits=2):
+def make_dataset(root, folder, training_file, test_file, min_digits=0, max_digits=2,
+                 resize=True, translate=True):
     if not os.path.isdir(os.path.join(root, folder)):
         os.makedirs(os.path.join(root, folder))
 
     np.random.seed(681307)
     train_mnist, test_mnist = load_mnist()
-    train_x, train_y = mk_dataset(60000, train_mnist, min_digits, max_digits, 50)
-    test_x, test_y = mk_dataset(10000, test_mnist, min_digits, max_digits, 50)
+    train_x, train_y = mk_dataset(60000, train_mnist, min_digits, max_digits, 50,
+                                  resize=resize, translate=translate)
+    test_x, test_y = mk_dataset(10000, test_mnist, min_digits, max_digits, 50,
+                                resize=resize, translate=translate)
     
     train_x = torch.from_numpy(train_x).byte()
     test_x = torch.from_numpy(test_x).byte()
@@ -179,10 +193,15 @@ if __name__ == "__main__":
                         help='minimum number of digits to add to an image')
     parser.add_argument('--max_digits', type=int, default=2,
                         help='maximum number of digits to add to an image')
-    parser.add_argument('--fix_loc', action='store_true', default=False,
+    parser.add_argument('--no_resize', action='store_true', default=False,
+                        help='if True, fix the image to be MNIST size')
+    parser.add_argument('--no_translate', action='store_true', default=False,
                         help='if True, fix the image to be in the center')
     args = parser.parse_args()
+    args.resize = not args.no_resize
+    args.translate = not args.no_translate
     # Generate the training set and dump it to disk. (Note, this will
     # always generate the same data, else error out.)
     make_dataset('./data', 'multimnist', 'training.pt', 'test.pt',
-                 min_digits=args.min_digits, max_digits=args.max_digits)
+                 min_digits=args.min_digits, max_digits=args.max_digits,
+                 resize=args.resize, translate=args.translate)
