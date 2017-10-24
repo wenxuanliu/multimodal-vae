@@ -29,6 +29,10 @@ def fetch_multimnist_image(_label):
     for image, label in loader:
         if tensor_to_string(label.squeeze(0)) == _label:
             images.append(image)
+
+    if len(images) == 0:
+        sys.exit('No images with label (%s) found.' % _label)
+
     images = torch.cat(images).cpu().numpy()
     ix = np.random.choice(np.arange(images.shape[0]))
     image = images[ix]

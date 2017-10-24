@@ -47,6 +47,15 @@ class MultimodalVAE(nn.Module):
     def decode_text(self, z):
         return self.text_decoder(z)
 
+    def prior(self, size, use_cuda=False):
+        mu = torch.zeros(size)
+        logvar = torch.log(torch.ones(size))
+        if use_cuda:
+            mu = mu.cuda()
+            logvar = logvar.cuda()
+
+        return mu, logvar
+
     def forward(self, image=None, text=None):
         # can't just put nothing
         assert image is not None or text is not None
@@ -57,13 +66,19 @@ class MultimodalVAE(nn.Module):
             text_mu, text_logvar = self.encode_text(text)
             mu = torch.stack((image_mu, text_mu), dim=0)
             logvar = torch.stack((image_logvar, text_logvar), dim=0)
-            # grab learned mixture weights and sample
-            mu, logvar = self.experts(mu, logvar)
         elif image is not None:
             mu, logvar = self.encode_image(image)
         elif text is not None:
             mu, logvar = self.encode_text(text)
-        
+
+        # add p(z) as an expert; regularizes for missing modalities
+        # https://arxiv.org/pdf/1705.10762.pdf
+        prior_mu, prior_logvar = self.prior((image.size(0), mu.size(-1)),
+                                            use_cuda=mu.is_cuda)
+        mu = torch.stack((mu, prior_mu))
+        logvar = torch.stack((logvar, prior_logvar))
+        # product of experts to combine gaussians
+        mu, logvar = self.experts(mu, logvar)
         # reparametrization trick to sample
         z = self.reparametrize(mu, logvar)
         # reconstruct inputs based on that gaussian
@@ -71,18 +86,6 @@ class MultimodalVAE(nn.Module):
         text_recon = self.decode_text(z)
 
         return image_recon, text_recon, mu, logvar
-
-    def gen_latents(self, image, text):
-        # compute separate gaussians per modality
-        image_mu, image_logvar = self.encode_image(image)
-        text_mu, text_logvar = self.encode_text(text)
-        mu = torch.stack((image_mu, text_mu), dim=0)
-        logvar = torch.stack((image_logvar, text_logvar), dim=0)
-        
-        # grab learned mixture weights and sample
-        mu, logvar = self.experts(mu, logvar)
-        z = self.reparametrize(mu, logvar)
-        return z
 
 
 class ImageVAE(nn.Module):
