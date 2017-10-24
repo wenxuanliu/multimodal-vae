@@ -203,12 +203,12 @@ class ImageEncoder(nn.Module):
             nn.MaxPool2d(2),
             Swish(),
             nn.BatchNorm2d(20),
-            nn.Conv2d(20, 20, kernel_size=5),
+            nn.Conv2d(20, 20, kernel_size=3),
             Swish(),
             nn.BatchNorm2d(20),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(500, 400),
+            nn.Linear(980, 400),
             Swish(),
             nn.Dropout(p=0.1),
             nn.Linear(400, 50),
@@ -221,7 +221,7 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 20 * 5 * 5)
+        x = x.view(-1, 20 * 7 * 7)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
