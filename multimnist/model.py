@@ -139,26 +139,28 @@ class TextVAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-class ImageEncoder(nn.Module):
-    """MNIST doesn't need CNN, so use a lightweight FNN"""
-    def __init__(self, n_latents):
-        super(ImageEncoder, self).__init__()
-        self.net = nn.Sequential(
-            Attention(2500, 1000)
-            nn.Linear(1000, 400),
-            nn.BatchNorm1d(400),
-            nn.ReLU(),
-            nn.Linear(400, 200),
-            nn.BatchNorm1d(200),
-            nn.ReLU(),
-            nn.Linear(200, n_latents * 2),
-        )
-        self.n_latents = n_latents
-
-    def forward(self, x):
-        n_latents = self.n_latents
-        x = self.net(x.view(-1, 2500))
-        return x[:, :n_latents], x[:, n_latents:]
+# class ImageEncoder(nn.Module):
+#     """MNIST doesn't need CNN, so use a lightweight FNN"""
+#     def __init__(self, n_latents):
+#         super(ImageEncoder, self).__init__()
+#         self.net = nn.Sequential(
+#             nn.Linear(2500, 1000),
+#             nn.BatchNorm1d(400),
+#             Swish(),
+#             nn.Linear(1000, 400),
+#             nn.BatchNorm1d(400),
+#             Swish(),
+#             nn.Linear(400, 200),
+#             nn.BatchNorm1d(200),
+#             Swish(),
+#             nn.Linear(200, n_latents * 2),
+#         )
+#         self.n_latents = n_latents
+# 
+#     def forward(self, x):
+#         n_latents = self.n_latents
+#         x = self.net(x.view(-1, 2500))
+#         return x[:, :n_latents], x[:, n_latents:]
 
 
 class ImageDecoder(nn.Module):
@@ -167,13 +169,13 @@ class ImageDecoder(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(n_latents, 200),
             nn.BatchNorm1d(200),
-            nn.ReLU(),
+            Swish(),
             nn.Linear(200, 400),
             nn.BatchNorm1d(400),
-            nn.ReLU(),
+            Swish(),
             nn.Linear(400, 1000),
             nn.BatchNorm1d(1000),
-            nn.ReLU(),
+            Swish(),
             nn.Linear(1000, 2500),
         )
 
@@ -183,45 +185,45 @@ class ImageDecoder(nn.Module):
         return z.view(-1, 1, 50, 50)
 
 
-# class ImageEncoder(nn.Module):
-#     """This task is quite a bit harder than MNIST so we probably need 
-#     to use an RNN of some form. This will be good to get us ready for
-#     natural images.
+class ImageEncoder(nn.Module):
+    """This task is quite a bit harder than MNIST so we probably need 
+    to use an RNN of some form. This will be good to get us ready for
+    natural images.
 
-#     :param n_latents: size of latent vector
-#     """
-#     def __init__(self, n_latents):
-#         super(ImageEncoder, self).__init__()
-#         self.features = nn.Sequential(
-#             nn.Conv2d(1, 10, kernel_size=5),
-#             nn.MaxPool2d(2),
-#             nn.ReLU(),
-#             nn.BatchNorm2d(10),
-#             nn.Conv2d(10, 20, kernel_size=5),
-#             nn.MaxPool2d(2),
-#             nn.ReLU(),
-#             nn.BatchNorm2d(20),
-#             nn.Conv2d(20, 20, kernel_size=5),
-#             nn.ReLU(),
-#             nn.BatchNorm2d(20),
-#         )
-#         self.classifier = nn.Sequential(
-#             nn.Linear(500, 400),
-#             nn.ReLU(),
-#             nn.Dropout(p=0.1),
-#             nn.Linear(400, 50),
-#             nn.ReLU(),
-#             nn.Dropout(p=0.1),
-#             nn.Linear(50, n_latents * 2)
-#         )
-#         self.n_latents = n_latents
+    :param n_latents: size of latent vector
+    """
+    def __init__(self, n_latents):
+        super(ImageEncoder, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 10, kernel_size=5),
+            nn.MaxPool2d(2),
+            Swish(),
+            nn.BatchNorm2d(10),
+            nn.Conv2d(10, 20, kernel_size=5),
+            nn.MaxPool2d(2),
+            Swish(),
+            nn.BatchNorm2d(20),
+            nn.Conv2d(20, 20, kernel_size=5),
+            Swish(),
+            nn.BatchNorm2d(20),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(500, 400),
+            Swish(),
+            nn.Dropout(p=0.1),
+            nn.Linear(400, 50),
+            Swish(),
+            nn.Dropout(p=0.1),
+            nn.Linear(50, n_latents * 2)
+        )
+        self.n_latents = n_latents
 
-#     def forward(self, x):
-#         n_latents = self.n_latents
-#         x = self.features(x)
-#         x = x.view(-1, 20 * 5 * 5)
-#         x = self.classifier(x)
-#         return x[:, :n_latents], x[:, n_latents:]
+    def forward(self, x):
+        n_latents = self.n_latents
+        x = self.features(x)
+        x = x.view(-1, 20 * 5 * 5)
+        x = self.classifier(x)
+        return x[:, :n_latents], x[:, n_latents:]
 
 
 # class ImageDecoder(nn.Module):
@@ -229,9 +231,9 @@ class ImageDecoder(nn.Module):
 #         super(ImageDecoder, self).__init__()
 #         self.upsample = nn.Sequential(
 #             nn.Linear(n_latents, 50),
-#             nn.ReLU(),
+#             Swish(),
 #             nn.Linear(50, 10 * 20 * 20),
-#             nn.ReLU(),
+#             Swish(),
 #         )
 #         self.hallucinate = nn.Sequential(
 #             nn.ConvTranspose2d(10, 20, kernel_size=12),
@@ -328,7 +330,7 @@ class TextDecoder(nn.Module):
         return sample.view(batch_size, max_length)
 
     def step(self, ix, z, c_in, h):
-        c_in = F.relu(self.embed(c_in))
+        c_in = swish(self.embed(c_in))
         c_in = torch.cat((c_in, z), dim=1)
         c_in = c_in.unsqueeze(0)
         c_out, h = self.gru(c_in, h)
@@ -356,9 +358,20 @@ class ProductOfExperts(nn.Module):
 
 class Attention(nn.Module):
     def __init__(self, in_features, out_features):
+        super(Attention, self).__init__()
         self.out_features = out_features
         self.params = Parameter(torch.normal(torch.zeros(in_features), 1))
 
     def forward(self, x):
         x = self.params * x
-        return torch.topk(x, self.out_features, dim=1)
+        x = torch.topk(x, self.out_features, dim=1, sorted=False)[0]
+        return x
+
+
+def swish(x):
+    return x * F.sigmoid(x)
+
+
+class Swish(nn.Module):
+    def forward(self, x):
+        return x * F.sigmoid(x)
