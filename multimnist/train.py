@@ -246,7 +246,7 @@ if __name__ == "__main__":
         }, is_best, folder='./trained_models')   
 
         if is_best:
-            sample = Variable(torch.randn(64, n_latents))
+            sample = Variable(torch.randn(64, args.n_latents))
             if args.cuda:
                sample = sample.cuda()
 

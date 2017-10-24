@@ -11,7 +11,7 @@ import math
 import torch
 from torch.autograd import Variable
 
-max_length = 2  # max of 2 characters in an image
+max_length = 4  # max of 4 characters in an image
 all_characters = '0123456789'
 n_characters = len(all_characters)
 SOS = n_characters
