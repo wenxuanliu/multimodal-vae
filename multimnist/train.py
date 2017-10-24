@@ -63,7 +63,8 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128):
+def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
+                        batch_size=128, kl_lambda=1000):
     image_BCE = F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     text_BCE = F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
@@ -71,29 +72,31 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * (2500 + 50 * max_length) # for each pixel + embedding unit
+    KLD = KLD / batch_size * kl_lambda
     return image_BCE + text_BCE + KLD
 
 
-def image_loss_function(recon_image, image, mu, logvar, batch_size=128):
+def image_loss_function(recon_image, image, mu, logvar, 
+                        batch_size=128, kl_lambda=1000):
     image_BCE = F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 2500  # for each pixel
+    KLD = KLD / batch_size * kl_lambda
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, batch_size=128):
+def text_loss_function(recon_text, text, mu, logvar, 
+                       batch_size=128, kl_lambda=1000):
     text_BCE = F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50 * max_length  # for each embedding unit
+    KLD = KLD / batch_size * kl_lambda
     return text_BCE + KLD
 
 
@@ -110,6 +113,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
+    parser.add_argument('--anneal_kl', action='store_true', default=False, 
+                        help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -154,11 +159,11 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size)
+                                        batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -192,11 +197,11 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size)
+                                        batch_size=args.batch_size, kl_lambda=kl_lambda)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
@@ -214,8 +219,16 @@ if __name__ == "__main__":
         return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
 
 
+    kl_lambda = 1e-3
+    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
+        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+            try:
+                kl_lambda = next(schedule)
+            except:
+                pass
+
         train(epoch)
         loss, (joint_loss, image_loss, text_loss) = test()
 

@@ -40,7 +40,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, batch_size=128, kl_lambda=2500):
+def loss_function(recon_x, x, mu, logvar, batch_size=128, kl_lambda=1000):
     BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
 
     # see Appendix B from VAE paper:
@@ -114,7 +114,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda)
+            loss = loss_function(recon_batch, data, mu, logvar, 
+                                 batch_size=args.batch_size, kl_lambda=kl_lambda)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
             test_loss += loss_function(recon_batch, data, mu, logvar,
-                                       kl_lambda=kl_lambda).data[0]
+                                       batch_size=args.batch_size, kl_lambda=kl_lambda).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))
