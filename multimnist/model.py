@@ -48,8 +48,8 @@ class MultimodalVAE(nn.Module):
         return self.text_decoder(z)
 
     def prior(self, size, use_cuda=False):
-        mu = torch.zeros(size)
-        logvar = torch.log(torch.ones(size))
+        mu = Variable(torch.zeros(size))
+        logvar = Variable(torch.log(torch.ones(size)))
         if use_cuda:
             mu = mu.cuda()
             logvar = logvar.cuda()
@@ -68,15 +68,17 @@ class MultimodalVAE(nn.Module):
             logvar = torch.stack((image_logvar, text_logvar), dim=0)
         elif image is not None:
             mu, logvar = self.encode_image(image)
+            mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
         elif text is not None:
             mu, logvar = self.encode_text(text)
+            mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
 
         # add p(z) as an expert; regularizes for missing modalities
         # https://arxiv.org/pdf/1705.10762.pdf
-        prior_mu, prior_logvar = self.prior((image.size(0), mu.size(-1)),
+        prior_mu, prior_logvar = self.prior((1, mu.size(1), mu.size(2)),
                                             use_cuda=mu.is_cuda)
-        mu = torch.stack((mu, prior_mu))
-        logvar = torch.stack((logvar, prior_logvar))
+        mu = torch.cat((mu, prior_mu), dim=0)
+        logvar = torch.cat((logvar, prior_logvar), dim=0)
         # product of experts to combine gaussians
         mu, logvar = self.experts(mu, logvar)
         # reparametrization trick to sample
