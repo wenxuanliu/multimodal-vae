@@ -200,26 +200,26 @@ class ImageEncoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 10, kernel_size=5),
-            nn.MaxPool2d(2),
+            nn.Conv2d(1, 16, 4, 2, 1, bias=False),
             Swish(),
-            nn.BatchNorm2d(10),
-            nn.Conv2d(10, 20, kernel_size=5),
-            nn.MaxPool2d(2),
+            nn.Conv2d(16, 32, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
             Swish(),
-            nn.BatchNorm2d(20),
-            nn.Conv2d(20, 20, kernel_size=3),
+            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
             Swish(),
-            nn.BatchNorm2d(20),
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(980, 400),
+            nn.Linear(1152, 400),
             Swish(),
             nn.Dropout(p=0.1),
-            nn.Linear(400, 50),
+            nn.Linear(400, 200),
             Swish(),
             nn.Dropout(p=0.1),
-            nn.Linear(50, n_latents * 2)
+            nn.Linear(200, n_latents * 2)
         )
         self.n_latents = n_latents
 
