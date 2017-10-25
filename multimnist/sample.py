@@ -6,6 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import sys
 import numpy as np
 
 import torch
@@ -15,10 +16,15 @@ from torchvision.utils import save_image
 
 import datasets
 from train import load_checkpoint
-from utils import charlist_tensor, tensor_to_string
+from utils import char_tensor, charlist_tensor, tensor_to_string
+
+EMPTY = '{}'
 
 
 def fetch_multimnist_image(_label):
+    if _label == EMPTY:
+        _label = ''
+
     loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=False, download=True,
                             transform=transforms.ToTensor(),
@@ -43,7 +49,9 @@ def fetch_multimnist_image(_label):
 
 
 def fetch_multimnist_text(label):
-    text = charlist_tensor(label).unsqueeze(0)
+    if label == EMPTY:
+        label = ''
+    text = char_tensor(label).unsqueeze(0)
     return Variable(text, volatile=True)
 
 
@@ -53,9 +61,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('n_samples', type=int, help='Number of images and texts to sample.')
     parser.add_argument('model_path', type=str, help='path to trained model file.')
-    parser.add_argument('--condition_on_image', type=int, default=None,
+    parser.add_argument('--condition_on_image', type=str, default=None,
                         help='If True, generate text conditioned on an image.')
-    parser.add_argument('--condition_on_text', type=int, default=None, 
+    parser.add_argument('--condition_on_text', type=str, default=None, 
                         help='If True, generate images conditioned on a text.')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
