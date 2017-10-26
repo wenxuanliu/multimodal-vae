@@ -2,7 +2,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import operator
 import numpy as np
+import pandas as pd
 
 import torch
 from torchvision import transforms
@@ -21,6 +23,7 @@ if __name__ == "__main__":
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    import seaborn as sns
 
     parser = argparse.ArgumentParser()
     parser.add_argument('models_dir', type=str, help='path to output directory of weak.py')
@@ -29,10 +32,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    x, y1, y2 = [], [], []
+    x1, x2, y1, y2 = [], [], [], []
 
     for dir_path in glob(os.path.join(args.models_dir, '*')):
-        weak_perc = float(os.path.basename(dir_path).split('_')[-1])
+        weak_perc_m1 = float(os.path.basename(dir_path).split('_')[-2])
+        weak_perc_m2 = float(os.path.basename(dir_path).split('_')[-1])
         loader = torch.utils.data.DataLoader(
             datasets.MultiMNIST('./data', train=False, download=True,
                                 transform=transforms.ToTensor(),
@@ -43,22 +47,40 @@ if __name__ == "__main__":
         weak_char_acc, weak_len_acc = test_multimnist(vae, loader, 
                                                       use_cuda=args.cuda, verbose=False)
 
-        x1.append(weak_perc)
+        x1.append(weak_perc_m1)
+        x2.append(weak_perc_m2)
         y1.append(weak_char_acc)
         y2.append(weak_len_acc)
         print('Got accuracies for %s.' % dir_path)
 
-    x, y1, y2 = np.array(x), np.array(y1), np.array(y2)
-    ix = np.argsort(x)
-    x, y1, y2 = x[ix], y1[ix], y2[ix]
+    assert len(set(x1)) == len(set(x2))
+    percs = sorted(list(set(x1)))
+    n_perc = len(percs)
 
-    plt.figure()
-    plt.plot(x, y1, '-o', label='character accuracy')
-    plt.plot(x, y2, '-o', label='length accuracy')
-    plt.xlabel('% Supervision', fontsize=18)
-    plt.ylabel('MultiMNIST Accuracy', fontsize=18)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    plt.tick_params(axis='both', which='minor', labelsize=16)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig('./weak_supervision.png')
+    x1, x2 = np.array(x1), np.array(x2) 
+    y1, y2 = np.array(y1), np.array(y2)
+    data = np.vstack((x1, x2, y1, y2)).T.tolist()
+    data = np.array(sorted(data, key=operator.itemgetter(0, 1)))
+    
+    data1 = data[:, -2].reshape(n_perc, n_perc)
+    data2 = data[:, -1].reshape(n_perc, n_perc)
+
+    def save_plot(data, savepath)
+        column_labels = [str(i) for i in percs]
+        row_labels = [str(i) for i in percs]
+    
+        fig, ax = plt.subplots()
+        heatmap = ax.pcolor(data)
+
+        # put the major ticks at the middle of each cell, notice "reverse" use of dimension
+        ax.set_yticks(np.arange(data.shape[0])+0.5, minor=False)
+        ax.set_xticks(np.arange(data.shape[1])+0.5, minor=False)
+        ax.set_xticklabels(row_labels, minor=False)
+        ax.set_yticklabels(column_labels, minor=False)
+        
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(savepath)
+
+    save_plot(data1, './weak_char_supervision.png')
+    save_plot(data2, './weak_len_supervision.png')
