@@ -209,7 +209,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    supervision_dir = './trained_models/weak_supervision'
+    supervision_dir = './trained_models/weak_modal_supervision'
     if os.path.isdir(supervision_dir):
         shutil.rmtree(supervision_dir)
     os.makedirs(supervision_dir)
