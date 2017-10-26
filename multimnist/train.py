@@ -64,7 +64,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
-                        batch_size=128, kl_lambda=1000, lambda_xy=1, lambda_yx=100):
+                        batch_size=128, kl_lambda=1000, lambda_xy=1, lambda_yx=1):
     image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     parser.add_argument('--anneal_kl', action='store_true', default=False, 
                         help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--lambda_xy', type=float, default=1.)
-    parser.add_argument('--lambda_yx', type=float, default=100.)
-    parser.add_argument('--lambda_x', type=float, default=0.01)
+    parser.add_argument('--lambda_yx', type=float, default=1.)
+    parser.add_argument('--lambda_x', type=float, default=1)
     parser.add_argument('--lambda_y', type=float, default=100.)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
