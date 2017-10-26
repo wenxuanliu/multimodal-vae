@@ -117,7 +117,7 @@ if __name__ == "__main__":
                         help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--lambda_xy', type=float, default=1.)
     parser.add_argument('--lambda_yx', type=float, default=100.)
-    parser.add_argument('--lambda_x', type=float, default=1.)
+    parser.add_argument('--lambda_x', type=float, default=0.01)
     parser.add_argument('--lambda_y', type=float, default=100.)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -163,11 +163,14 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
+                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
+                                         lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
+                                        lambda_y=args.lambda_y)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -201,11 +204,14 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
+                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
+                                         lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda)
+                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
+                                        lambda_y=args.lambda_y)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
