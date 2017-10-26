@@ -14,6 +14,7 @@ from __future__ import absolute_import
 import os
 import numpy as np
 from PIL import Image
+from random import shuffle
 from scipy.misc import imresize
 
 import torch
@@ -22,7 +23,7 @@ from torch.utils.data.dataset import Dataset
 
 
 class MultiMNIST(Dataset):
-    """images with 0 to 2 images of non-overlapping MNIST numbers."""
+    """images with 0 to 4 digits of non-overlapping MNIST numbers."""
     processed_folder = 'multimnist'
     training_file = 'training.pt'
     test_file = 'test.pt'
@@ -86,6 +87,46 @@ class MultiMNIST(Dataset):
             return
         make_dataset(self.root, self.processed_folder, 
                      self.training_file, self.test_file)
+
+
+class ScrambledMNIST(MultiMNIST):
+    """Identical MultiMNIST except that we scramble the text 
+    i.e. the image may contain and 1 and a 3 in that order 
+    but the label might be 13 or 31.
+    """
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        if self.train:
+            img, target = self.train_data[index], self.train_labels[index]
+        else:
+            img, target = self.test_data[index], self.test_labels[index]
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img.numpy(), mode='L')
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        # scramble the text string
+        target = scramble(target)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+
+def scramble(word):
+    word = list(word)
+    shuffle(word)
+    return ''.join(word)
 
 
 def sample_one(canvas_size, mnist, resize=True, translate=True):
