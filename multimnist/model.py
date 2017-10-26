@@ -168,26 +168,26 @@ class TextVAE(nn.Module):
 #         return x[:, :n_latents], x[:, n_latents:]
 
 
-class ImageDecoder(nn.Module):
-    def __init__(self, n_latents):
-        super(ImageDecoder, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(n_latents, 200),
-            nn.BatchNorm1d(200),
-            Swish(),
-            nn.Linear(200, 400),
-            nn.BatchNorm1d(400),
-            Swish(),
-            nn.Linear(400, 1000),
-            nn.BatchNorm1d(1000),
-            Swish(),
-            nn.Linear(1000, 2500),
-        )
+# class ImageDecoder(nn.Module):
+#     def __init__(self, n_latents):
+#         super(ImageDecoder, self).__init__()
+#         self.net = nn.Sequential(
+#             nn.Linear(n_latents, 200),
+#             nn.BatchNorm1d(200),
+#             Swish(),
+#             nn.Linear(200, 400),
+#             nn.BatchNorm1d(400),
+#             Swish(),
+#             nn.Linear(400, 1000),
+#             nn.BatchNorm1d(1000),
+#             Swish(),
+#             nn.Linear(1000, 2500),
+#         )
 
-    def forward(self, z):
-        z = self.net(z)
-        z = F.sigmoid(z)
-        return z.view(-1, 1, 50, 50)
+#     def forward(self, z):
+#         z = self.net(z)
+#         z = F.sigmoid(z)
+#         return z.view(-1, 1, 50, 50)
 
 
 class ImageEncoder(nn.Module):
@@ -200,10 +200,7 @@ class ImageEncoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 16, 4, 2, 1, bias=False),
-            Swish(),
-            nn.Conv2d(16, 32, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, 32, 4, 2, 1, bias=False),
             Swish(),
             nn.Conv2d(32, 64, 4, 2, 1, bias=False),
             nn.BatchNorm2d(64),
@@ -211,9 +208,12 @@ class ImageEncoder(nn.Module):
             nn.Conv2d(64, 128, 4, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             Swish(),
+            nn.Conv2d(128, 256, 4, 2, 0, bias=False),
+            nn.BatchNorm2d(256),
+            Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(1152, 400),
+            nn.Linear(256 * 2 * 2, 400),
             Swish(),
             nn.Dropout(p=0.1),
             nn.Linear(400, 200),
@@ -226,40 +226,37 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 20 * 7 * 7)
+        x = x.view(-1, 256 * 2 * 2)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
 
-# class ImageDecoder(nn.Module):
-#     def __init__(self, n_latents):
-#         super(ImageDecoder, self).__init__()
-#         self.upsample = nn.Sequential(
-#             nn.Linear(n_latents, 50),
-#             Swish(),
-#             nn.Linear(50, 10 * 20 * 20),
-#             Swish(),
-#         )
-#         self.hallucinate = nn.Sequential(
-#             nn.ConvTranspose2d(10, 20, kernel_size=12),
-#             nn.ConvTranspose2d(20, 20, kernel_size=12),
-#             nn.ConvTranspose2d(20, 20, kernel_size=10),
-#             nn.Conv2d(20, 1, kernel_size=2),
-#         )
+class ImageDecoder(nn.Module):
+    def __init__(self, n_latents):
+        super(ImageDecoder, self).__init__()
+        self.upsample = nn.Sequential(
+            nn.Linear(n_latents, 256 * 2 * 2),
+            Swish(),
+        )
+        self.hallucinate = nn.Sequential(
+            nn.ConvTranspose2d(256, 128, 4, 2, 0, bias=False),
+            nn.BatchNorm2d(128),
+            Swish(),
+            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            Swish(),
+            nn.ConvTranspose2d(64, 32, 5, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
+            Swish(),
+            nn.ConvTranspose2d(32, 1, 4, 2, 1, bias=False),
+        )
 
-#     def forward(self, z):
-#         # the input will be a vector of size |n_latents|
-#         z = self.upsample(z)
-#         z = z.view(-1, 10, 20, 20)
-#         z = self.hallucinate(z)
-#         return F.sigmoid(z)
-
-#     def generate(self, z):
-#         z = self.upsample(z)
-#         z = z.view(-1, 10, 20, 20)
-#         z = self.hallucinate(z)
-#         image = F.sigmoid(z)
-#         return image * 255.
+    def forward(self, z):
+        # the input will be a vector of size |n_latents|
+        z = self.upsample(z)
+        z = z.view(-1, 256, 2, 2)
+        z = self.hallucinate(z)
+        return F.sigmoid(z)
 
 
 class TextEncoder(nn.Module):
