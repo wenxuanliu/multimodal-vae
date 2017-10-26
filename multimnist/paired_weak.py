@@ -58,7 +58,7 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
         batch_size=batch_size, shuffle=True)
 
     # load multimodal VAE
-    vae = MultimodalVAE(n_latents=n_latents)
+    vae = MultimodalVAE(n_latents=n_latents, use_cuda=cuda)
     if cuda:
         vae.cuda()
 
