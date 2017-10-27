@@ -47,7 +47,7 @@ def test_multimnist(model, loader, use_cuda=False, verbose=True):
             int(char_correct), len(loader.dataset) * max_length, 100. * _char_correct, 
             int(len_correct), len(loader.dataset), 100. * _len_correct))
 
-    return char_correct, len_correct
+    return _char_correct, _len_correct
 
 
 if __name__ == "__main__":
