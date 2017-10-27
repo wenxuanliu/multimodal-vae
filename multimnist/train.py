@@ -20,6 +20,8 @@ from model import MultimodalVAE
 from utils import n_characters, max_length
 from utils import tensor_to_string, charlist_tensor
 
+DEFAULT_N_LATENTS = 100
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -54,7 +56,8 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
 
-    vae = MultimodalVAE(n_latents=checkpoint['n_latents'], use_cuda=use_cuda)
+    n_latents = checkpoint['n_latents'] if 'n_latents' in checkpoint else DEFAULT_N_LATENTS
+    vae = MultimodalVAE(n_latents=n_latents, use_cuda=use_cuda)
     vae.load_state_dict(checkpoint['state_dict'])
     
     if use_cuda:

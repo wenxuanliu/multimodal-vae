@@ -42,7 +42,6 @@ if __name__ == "__main__":
         vae.eval()
         weak_char_acc, weak_len_acc = test_multimnist(vae, loader, 
                                                       use_cuda=args.cuda, verbose=False)
-
         x.append(weak_perc)
         y1.append(weak_char_acc)
         y2.append(weak_len_acc)
