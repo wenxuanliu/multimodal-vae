@@ -101,7 +101,7 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
                 image_loss_meter.update(loss_2.data[0], len(image))
                 loss += loss_2
 
-            flip = np.random.ranodm()
+            flip = np.random.random()
             if flip > weak_perc_m2:
                 _, recon_text_3, mu_3, logvar_3 = vae(text=text)
                 loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,

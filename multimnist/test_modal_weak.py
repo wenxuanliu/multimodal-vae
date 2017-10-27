@@ -65,7 +65,7 @@ if __name__ == "__main__":
     data1 = data[:, -2].reshape(n_perc, n_perc)
     data2 = data[:, -1].reshape(n_perc, n_perc)
 
-    def save_plot(data, savepath)
+    def save_plot(data, savepath):
         column_labels = [str(i) for i in percs]
         row_labels = [str(i) for i in percs]
     
