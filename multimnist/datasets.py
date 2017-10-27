@@ -12,6 +12,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
+import random
 import numpy as np
 from PIL import Image
 from random import shuffle
@@ -87,40 +88,6 @@ class MultiMNIST(Dataset):
             return
         make_dataset(self.root, self.processed_folder, 
                      self.training_file, self.test_file)
-
-
-class ScrambledMNIST(MultiMNIST):
-    """Identical MultiMNIST except that we scramble the text 
-    i.e. the image may contain and 1 and a 3 in that order 
-    but the label might be 13 or 31.
-    """
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is index of the target class.
-        """
-        if self.train:
-            img, target = self.train_data[index], self.train_labels[index]
-        else:
-            img, target = self.test_data[index], self.test_labels[index]
-
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
-        img = Image.fromarray(img.numpy(), mode='L')
-
-        if self.transform is not None:
-            img = self.transform(img)
-
-        # scramble the text string
-        target = scramble(target)
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, target
 
 
 def scramble(word):
@@ -229,10 +196,14 @@ def make_dataset(root, folder, training_file, test_file, min_digits=0, max_digit
         torch.save(test_set, f)
 
 
-def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3):
+def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3, scrambled=False):
     i = np.random.randint(mnist['digits'].shape[0])
     digit = mnist['digits'][i]
     label = mnist['labels'][i]
+
+    if scrambled:
+        random.shuffle(label)
+
     resized = imresize(digit, 1. / scale)
     w = resized.shape[0]
     assert w == resized.shape[1]
@@ -242,13 +213,13 @@ def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3):
     return positioned, label
 
 
-def sample_multi_fixed(num_digits, canvas_size, mnist):
+def sample_multi_fixed(num_digits, canvas_size, mnist, scrambled=False):
     canvas = np.zeros((canvas_size, canvas_size))
     labels = []
     pads = [(4, 4), (4, 23), (23, 4), (23, 23)]
     for i in range(num_digits):
-        positioned_digit, label = sample_one_fixed(canvas_size, mnist, 
-                                                   pads[i][0], pads[i][1])
+        positioned_digit, label = sample_one_fixed(canvas_size, mnist, pads[i][0], pads[i][1], 
+                                                   scrambled=scrambled)
         canvas += positioned_digit
         labels.append(label)
     
@@ -259,25 +230,28 @@ def sample_multi_fixed(num_digits, canvas_size, mnist):
         return canvas, labels
 
 
-def mk_dataset_fixed(n, mnist, min_digits, max_digits, canvas_size):
+def mk_dataset_fixed(n, mnist, min_digits, max_digits, canvas_size, scrambled=False):
     x = []
     y = []
     for _ in range(n):
         num_digits = np.random.randint(min_digits, max_digits + 1)
-        canvas, labels = sample_multi_fixed(num_digits, canvas_size, mnist)
+        canvas, labels = sample_multi_fixed(num_digits, canvas_size, mnist, scrambled=scrambled)
         x.append(canvas)
         y.append(labels)
     return np.array(x, dtype=np.uint8), y
 
 
-def make_dataset_fixed(root, folder, training_file, test_file, min_digits=0, max_digits=3):
+def make_dataset_fixed(root, folder, training_file, test_file, 
+                       min_digits=0, max_digits=3, scrambled=False):
     if not os.path.isdir(os.path.join(root, folder)):
         os.makedirs(os.path.join(root, folder))
 
     np.random.seed(681307)
     train_mnist, test_mnist = load_mnist()
-    train_x, train_y = mk_dataset_fixed(60000, train_mnist, min_digits, max_digits, 50)
-    test_x, test_y = mk_dataset_fixed(10000, test_mnist, min_digits, max_digits, 50)
+    train_x, train_y = mk_dataset_fixed(60000, train_mnist, min_digits, max_digits, 
+                                        50, scrambled=scrambled)
+    test_x, test_y = mk_dataset_fixed(10000, test_mnist, min_digits, max_digits, 
+                                      50, scrambled=scrambled)
     
     train_x = torch.from_numpy(train_x).byte()
     test_x = torch.from_numpy(test_x).byte()
@@ -305,14 +279,20 @@ if __name__ == "__main__":
                         help='if True, fix the image to be in the center')
     parser.add_argument('--fixed', action='store_true', default=False,
                         help='If True, ignore resize/translate options and generate')
+    parser.add_argument('--scrambled', action='store_true', default=False,
+                        help='If True, scramble labels and generate. Only does something if fixed is True.')
     args = parser.parse_args()
     args.resize = not args.no_resize
     args.translate = not args.no_translate
+    if args.scrambled and not args.fixed:
+        raise Exception('Must have --fixed if --scrambled is supplied.')
+
     # Generate the training set and dump it to disk. (Note, this will
     # always generate the same data, else error out.)
     if args.fixed:
         make_dataset_fixed('./data', 'multimnist', 'training.pt', 'test.pt',
-                           min_digits=args.min_digits, max_digits=args.max_digits)
+                           min_digits=args.min_digits, max_digits=args.max_digits,
+                           scrambled=args.scrambled)
     else:  # if not fixed, then make classific MultiMNIST dataset
         make_dataset('./data', 'multimnist', 'training.pt', 'test.pt',
                      min_digits=args.min_digits, max_digits=args.max_digits,
