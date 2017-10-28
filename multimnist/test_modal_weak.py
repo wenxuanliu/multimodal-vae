@@ -35,7 +35,7 @@ if __name__ == "__main__":
     x1, x2, y1, y2 = [], [], [], []
 
     for dir_path in glob(os.path.join(args.models_dir, '*')):
-        weak_perc_m1 = float(os.path.basename(dir_path).split('_')[-2])
+        weak_perc_m1 = float(os.path.basename(dir_path).split('_')[-3])
         weak_perc_m2 = float(os.path.basename(dir_path).split('_')[-1])
         loader = torch.utils.data.DataLoader(
             datasets.MultiMNIST('./data', train=False, download=True,
@@ -65,12 +65,18 @@ if __name__ == "__main__":
     data1 = data[:, -2].reshape(n_perc, n_perc)
     data2 = data[:, -1].reshape(n_perc, n_perc)
 
-    def save_plot(data, savepath)
+    def save_plot(data, savepath):
         column_labels = [str(i) for i in percs]
         row_labels = [str(i) for i in percs]
     
         fig, ax = plt.subplots()
         heatmap = ax.pcolor(data)
+
+        for y in range(data.shape[0]):
+            for x in range(data.shape[1]):
+                plt.text(x + 0.5, y + 0.5, '%.2f' % data[y, x],
+                         horizontalalignment='center',
+                         verticalalignment='center')
 
         # put the major ticks at the middle of each cell, notice "reverse" use of dimension
         ax.set_yticks(np.arange(data.shape[0])+0.5, minor=False)
@@ -78,7 +84,10 @@ if __name__ == "__main__":
         ax.set_xticklabels(row_labels, minor=False)
         ax.set_yticklabels(column_labels, minor=False)
         
-        plt.legend()
+        plt.colorbar(heatmap)
+        plt.xlabel('% Image Examples', fontsize=18)
+        plt.ylabel('% Text Examples', fontsize=18)
+
         plt.tight_layout()
         plt.savefig(savepath)
 
