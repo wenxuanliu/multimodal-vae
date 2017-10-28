@@ -40,3 +40,13 @@ Train MMVAE on MultiMNIST sans translation/dilation; 0 to 4 digits are projected
 Only show a fixed percentage of paired (image, label) data, and see how MMVAE does on predicting MNIST labels (generating text). 
 
 ![embedding](./multimnist/static/weak_supervision.png)
+
+During training, we provide independent image and text examples that are not paired. We can vary the amount of each modality we show MMVAE and see how weak supervision in modalities (rather than in the labeled pairs) affect performance.
+
+Character Prediction Accuracy: 
+
+![embedding](./multimnist/static/weak_char_supervision.png)
+
+Length Prediction Accuracy: 
+
+![embedding](./multimnist/static/weak_len_supervision.png)
