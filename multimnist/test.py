@@ -68,7 +68,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str, help='path to trained model file')
     parser.add_argument('--scramble', action='store_true', default=False,
-                        help='If True, scramble labels and generate. Only does something if fixed is True.')
+                        help='If True, scramble labels and generate.')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
