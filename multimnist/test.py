@@ -20,7 +20,16 @@ from utils import max_length, FILL
 from utils import charlist_tensor
 
 
-def test_multimnist(model, loader, use_cuda=False, verbose=True):
+def test_multimnist(model, loader, scramble=False, use_cuda=False, verbose=True):
+    """Compute prediction accuracy on MultiMNIST; if scramble is True, the label
+    is correct if any scramble of the text matches.
+
+    :param model: trained MMVAE model
+    :param loader: MultiMNIST loader
+    :param scramble: whether to treat scrambled text as positive (default: False)
+    :param use_cuda: if True, cast CUDA on Variables (default: False)
+    :param verbose: if True, print more statuses (default: True)
+    """
     model.eval()
     char_correct = 0
     len_correct = 0
@@ -34,6 +43,10 @@ def test_multimnist(model, loader, use_cuda=False, verbose=True):
         _, recon_text, _, _ = model(image=image)
         pred = torch.max(recon_text.data, dim=2)[1].cpu().numpy()
         gt = text.cpu().numpy()
+
+        if scramble:
+            pred = np.sort(pred, axis=1)
+            gt = np.sort(gt, axis=1)
 
         char_correct += float(np.sum(pred == gt))
         len_correct += float(np.sum(np.sum(pred == FILL, axis=1) == 
@@ -54,6 +67,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str, help='path to trained model file')
+    parser.add_argument('--scramble', action='store_true', default=False,
+                        help='If True, scramble labels and generate. Only does something if fixed is True.')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -68,4 +83,4 @@ if __name__ == "__main__":
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
 
-    test_multimnist(vae, loader, use_cuda=args.cuda, verbose=True)
+    test_multimnist(vae, loader, scramble=args.scramble, use_cuda=args.cuda, verbose=True)
