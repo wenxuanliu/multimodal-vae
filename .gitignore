@@ -102,7 +102,7 @@ ENV/
 
 # custom
 **/data
-**/trained_models
+**/trained_models*
 **/results
 **/notebooks
 **/*.pkl
