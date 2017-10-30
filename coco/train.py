@@ -11,14 +11,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-import datasets
 from model import MultimodalVAE
-
 from utils import n_characters, max_length
-from utils import tensor_to_string, charlist_tensor
+from utils import tensor_to_string, char_tensor
 
 DEFAULT_N_LATENTS = 100
 
@@ -129,14 +127,16 @@ if __name__ == "__main__":
 
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=True, download=True,
-                            transform=transforms.ToTensor(),
-                            target_transform=charlist_tensor),
+        datasets.COCOCaptions('./data/coco/train2014', 
+                              './data/coco/annotations/captions_train2014.json',
+                              transform=transforms.ToTensor(),
+                              target_transform=char_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=False, download=True,
-                            transform=transforms.ToTensor(),
-                            target_transform=charlist_tensor),
+        datasets.COCOCaptions('./data/coco/val2014', 
+                              './data/coco/annotations/captions_val2014.json',
+                              transform=transforms.ToTensor(),
+                              target_transform=char_tensor),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -274,5 +274,4 @@ if __name__ == "__main__":
                 sample_texts.append(text)
 
             with open('./results/sample_text.txt', 'w') as fp:
-                for text in sample_texts:
-                    fp.write('%s\n' % text)
+                fp.writelines(sample_texts)

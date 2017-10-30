@@ -137,7 +137,7 @@ if __name__ == "__main__":
                './results/sample_image.png')
 
     # save text samples to filesystem
-    with open('./results/sample_texts.txt', 'w') as fp:
+    with open('./results/sample_text.txt', 'w') as fp:
         for i in xrange(text_recon.size(0)):
             text_recon_str = tensor_to_string(text_recon[i].data)
             fp.write('%s\n' % text_recon_str)
