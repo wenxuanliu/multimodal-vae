@@ -196,14 +196,10 @@ def make_dataset(root, folder, training_file, test_file, min_digits=0, max_digit
         torch.save(test_set, f)
 
 
-def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3, scramble=False):
+def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3):
     i = np.random.randint(mnist['digits'].shape[0])
     digit = mnist['digits'][i]
     label = mnist['labels'][i]
-
-    if scramble:
-        random.shuffle(label)
-
     resized = imresize(digit, 1. / scale)
     w = resized.shape[0]
     assert w == resized.shape[1]
@@ -218,14 +214,16 @@ def sample_multi_fixed(num_digits, canvas_size, mnist, scramble=False):
     labels = []
     pads = [(4, 4), (4, 23), (23, 4), (23, 23)]
     for i in range(num_digits):
-        positioned_digit, label = sample_one_fixed(canvas_size, mnist, pads[i][0], pads[i][1], 
-                                                   scramble=scramble)
+        positioned_digit, label = sample_one_fixed(canvas_size, mnist, pads[i][0], pads[i][1])
         canvas += positioned_digit
         labels.append(label)
     
+    if scramble:
+        random.shuffle(labels)
+
     # Crude check for overlapping digits.
     if np.max(canvas) > 255:
-        return sample_multi_fixed(num_digits, canvas_size, mnist)
+        return sample_multi_fixed(num_digits, canvas_size, mnist, scramble=scramble)
     else:
         return canvas, labels
 
