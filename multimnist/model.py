@@ -347,6 +347,30 @@ class TextDecoder(nn.Module):
         return c_out, h
 
 
+class SumTextEncoder(nn.Module):
+    """Sum of the independent embeddings of each character. 
+    This helps promote some sense of invariance. This is a much 
+    simpler model than a RNN.
+
+    :param n_latents: size of latent vector
+    :param n_characters: number of possible characters (10 for MNIST)
+    :param n_hiddens: number of hidden units in GRU
+    """
+    def __init__(self, n_latents, n_characters, n_hiddens=50):
+        super(SumTextEncoder, self).__init__()
+        self.embed = nn.EmbeddingBag(n_characters, n_hiddens, mode='sum')
+        self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
+        self.n_latents = n_latents
+        self.n_hiddens = n_hiddens
+
+    def forward(self, x):
+        n_hiddens = self.n_hiddens
+        n_latents = self.n_latents
+        x = self.embed(x)
+        x = self.h2p(x)
+        return x[:, :n_latents], x[:, n_latents:]
+
+
 class ProductOfExperts(nn.Module):
     """Return parameters for product of independent experts.
     See https://arxiv.org/pdf/1410.7827.pdf for equations.

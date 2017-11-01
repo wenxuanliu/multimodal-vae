@@ -20,12 +20,14 @@ from utils import max_length, FILL
 from utils import charlist_tensor
 
 
-def test_multimnist(model, loader, scramble=False, use_cuda=False, verbose=True):
+def test_multimnist(model, loader, reverse=False, scramble=False, 
+                    use_cuda=False, verbose=True):
     """Compute prediction accuracy on MultiMNIST; if scramble is True, the label
     is correct if any scramble of the text matches.
 
     :param model: trained MMVAE model
     :param loader: MultiMNIST loader
+    :param reverse: whether to treat reversed text as positive (default: False)
     :param scramble: whether to treat scrambled text as positive (default: False)
     :param use_cuda: if True, cast CUDA on Variables (default: False)
     :param verbose: if True, print more statuses (default: True)
@@ -47,10 +49,17 @@ def test_multimnist(model, loader, scramble=False, use_cuda=False, verbose=True)
         if scramble:
             pred = np.sort(pred, axis=1)
             gt = np.sort(gt, axis=1)
-
-        char_correct += float(np.sum(pred == gt))
+        
+        if reverse:
+            _char_correct = np.sum(pred == gt) + np.sum(pred[::-1] == gt)
+            _char_correct[_char_correct > 1] = 1
+            char_correct += _char_correct
+        else:
+            char_correct += float(np.sum(pred == gt))
+        
         len_correct += float(np.sum(np.sum(pred == FILL, axis=1) == 
                                     np.sum(gt == FILL, axis=1)))
+
 
     _char_correct = char_correct / (len(loader.dataset) * max_length)
     _len_correct = len_correct / len(loader.dataset)
@@ -67,12 +76,18 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str, help='path to trained model file')
+    parser.add_argument('--reverse', action='store_true', default=False,
+                        help='If True, count reversed labels as positives.')
     parser.add_argument('--scramble', action='store_true', default=False,
-                        help='If True, scramble labels and generate.')
+                        help='If True, count scrambled labels as positives.')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
+
+    if args.scramble and args.reverse:
+        args.reverse = False
+        print('--scramble overriding --reverse')
 
     loader = torch.utils.data.DataLoader(
         datasets.MultiMNIST('./data', train=False, download=True,
@@ -83,4 +98,5 @@ if __name__ == "__main__":
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
 
-    test_multimnist(vae, loader, scramble=args.scramble, use_cuda=args.cuda, verbose=True)
+    test_multimnist(vae, loader, reverse=args.reverse, scramble=args.scramble, 
+                    use_cuda=args.cuda, verbose=True)

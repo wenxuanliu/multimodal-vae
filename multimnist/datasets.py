@@ -90,12 +90,6 @@ class MultiMNIST(Dataset):
                      self.training_file, self.test_file)
 
 
-def scramble(word):
-    word = list(word)
-    shuffle(word)
-    return ''.join(word)
-
-
 def sample_one(canvas_size, mnist, resize=True, translate=True):
     i = np.random.randint(mnist['digits'].shape[0])
     digit = mnist['digits'][i]
@@ -209,7 +203,7 @@ def sample_one_fixed(canvas_size, mnist, pad_l, pad_r, scale=1.3):
     return positioned, label
 
 
-def sample_multi_fixed(num_digits, canvas_size, mnist, scramble=False):
+def sample_multi_fixed(num_digits, canvas_size, mnist, reverse=False, scramble=False):
     canvas = np.zeros((canvas_size, canvas_size))
     labels = []
     pads = [(4, 4), (4, 23), (23, 4), (23, 23)]
@@ -218,38 +212,44 @@ def sample_multi_fixed(num_digits, canvas_size, mnist, scramble=False):
         canvas += positioned_digit
         labels.append(label)
     
+    if reverse and random.random() > 0.5:
+        labels = labels[::-1]
+
     if scramble:
         random.shuffle(labels)
 
     # Crude check for overlapping digits.
     if np.max(canvas) > 255:
-        return sample_multi_fixed(num_digits, canvas_size, mnist, scramble=scramble)
+        return sample_multi_fixed(num_digits, canvas_size, mnist, 
+                                  reverse=reverse, scramble=scramble)
     else:
         return canvas, labels
 
 
-def mk_dataset_fixed(n, mnist, min_digits, max_digits, canvas_size, scramble=False):
+def mk_dataset_fixed(n, mnist, min_digits, max_digits, canvas_size, 
+                     reverse=False, scramble=False):
     x = []
     y = []
     for _ in range(n):
         num_digits = np.random.randint(min_digits, max_digits + 1)
-        canvas, labels = sample_multi_fixed(num_digits, canvas_size, mnist, scramble=scramble)
+        canvas, labels = sample_multi_fixed(num_digits, canvas_size, mnist, 
+                                            reverse=reverse, scramble=scramble)
         x.append(canvas)
         y.append(labels)
     return np.array(x, dtype=np.uint8), y
 
 
 def make_dataset_fixed(root, folder, training_file, test_file, 
-                       min_digits=0, max_digits=3, scramble=False):
+                       min_digits=0, max_digits=3, reverse=False, scramble=False):
     if not os.path.isdir(os.path.join(root, folder)):
         os.makedirs(os.path.join(root, folder))
 
     np.random.seed(681307)
     train_mnist, test_mnist = load_mnist()
     train_x, train_y = mk_dataset_fixed(60000, train_mnist, min_digits, max_digits, 
-                                        50, scramble=scramble)
+                                        50, reverse=reverse, scramble=scramble)
     test_x, test_y = mk_dataset_fixed(10000, test_mnist, min_digits, max_digits, 
-                                      50, scramble=scramble)
+                                      50, reverse=reverse, scramble=scramble)
     
     train_x = torch.from_numpy(train_x).byte()
     test_x = torch.from_numpy(test_x).byte()
@@ -279,18 +279,27 @@ if __name__ == "__main__":
                         help='If True, ignore resize/translate options and generate')
     parser.add_argument('--scramble', action='store_true', default=False,
                         help='If True, scramble labels and generate. Only does something if fixed is True.')
+    parser.add_argument('--reverse', action='store_true', default=False, 
+                        help='If True, reverse flips the labels i.e. 4321 instead of 1234 with 50% probability.')
     args = parser.parse_args()
     args.resize = not args.no_resize
     args.translate = not args.no_translate
     if args.scramble and not args.fixed:
         raise Exception('Must have --fixed if --scramble is supplied.')
 
+    if args.reverse and not args.fixed:
+        raise Exception('Must have --fixed if --reverse is supplied.')
+
+    if args.reverse and args.scramble:
+        print('Found --reversed and --scrambling. Overriding --reversed.')
+        args.reverse = False
+
     # Generate the training set and dump it to disk. (Note, this will
     # always generate the same data, else error out.)
     if args.fixed:
         make_dataset_fixed('./data', 'multimnist', 'training.pt', 'test.pt',
                            min_digits=args.min_digits, max_digits=args.max_digits,
-                           scramble=args.scramble)
+                           reverse=reverse, scramble=args.scramble)
     else:  # if not fixed, then make classific MultiMNIST dataset
         make_dataset('./data', 'multimnist', 'training.pt', 'test.pt',
                      min_digits=args.min_digits, max_digits=args.max_digits,
