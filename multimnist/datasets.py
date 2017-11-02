@@ -280,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument('--scramble', action='store_true', default=False,
                         help='If True, scramble labels and generate. Only does something if fixed is True.')
     parser.add_argument('--reverse', action='store_true', default=False, 
-                        help='If True, reverse flips the labels i.e. 4321 instead of 1234 with 50% probability.')
+                        help='If True, reverse flips the labels i.e. 4321 instead of 1234 with 0.5 probability.')
     args = parser.parse_args()
     args.resize = not args.no_resize
     args.translate = not args.no_translate
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     if args.fixed:
         make_dataset_fixed('./data', 'multimnist', 'training.pt', 'test.pt',
                            min_digits=args.min_digits, max_digits=args.max_digits,
-                           reverse=reverse, scramble=args.scramble)
+                           reverse=args.reverse, scramble=args.scramble)
     else:  # if not fixed, then make classific MultiMNIST dataset
         make_dataset('./data', 'multimnist', 'training.pt', 'test.pt',
                      min_digits=args.min_digits, max_digits=args.max_digits,
