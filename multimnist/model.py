@@ -23,7 +23,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        self.text_encoder = TextEncoder(n_latents, n_characters)
+        # self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
+        self.text_encoder = SumTextEncoder(n_latents, n_characters, n_hiddens=200)
         self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
@@ -267,13 +268,15 @@ class TextEncoder(nn.Module):
     :param n_characters: number of possible characters (10 for MNIST)
     :param n_hiddens: number of hidden units in GRU
     """
-    def __init__(self, n_latents, n_characters, n_hiddens=50):
+    def __init__(self, n_latents, n_characters, n_hiddens=50, bidirectional=True):
         super(TextEncoder, self).__init__()
         self.embed = nn.Embedding(n_characters, n_hiddens)
-        self.gru = nn.GRU(n_hiddens, n_hiddens, 1, dropout=0.1, bidirectional=True)
+        self.gru = nn.GRU(n_hiddens, n_hiddens, 1, dropout=0.1, 
+                          bidirectional=bidirectional)
         self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
         self.n_hiddens = n_hiddens
+        self.bidirectional = bidirectional
 
     def forward(self, x):
         n_hiddens = self.n_hiddens
@@ -282,7 +285,8 @@ class TextEncoder(nn.Module):
         x = x.transpose(0, 1)  # GRU expects (seq_len, batch, ...)
         x, h = self.gru(x, None)
         x = x[-1]  # take only the last value
-        x = x[:, :n_hiddens] + x[:, n_hiddens:]  # sum bidirectional outputs
+        if self.bidirectional:
+            x = x[:, :n_hiddens] + x[:, n_hiddens:]  # sum bidirectional outputs
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -358,7 +362,7 @@ class SumTextEncoder(nn.Module):
     """
     def __init__(self, n_latents, n_characters, n_hiddens=50):
         super(SumTextEncoder, self).__init__()
-        self.embed = nn.EmbeddingBag(n_characters, n_hiddens, mode='sum')
+        self.embed = nn.Embedding(n_characters, n_hiddens)
         self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
         self.n_hiddens = n_hiddens
@@ -367,6 +371,7 @@ class SumTextEncoder(nn.Module):
         n_hiddens = self.n_hiddens
         n_latents = self.n_latents
         x = self.embed(x)
+        x = torch.sum(x, dim=1)  # this introduces the ordering invariance
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
