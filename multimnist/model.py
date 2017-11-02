@@ -24,7 +24,7 @@ class MultimodalVAE(nn.Module):
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
         # self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
-        self.text_encoder = SumTextEncoder(n_latents, n_characters, n_hiddens=200)
+        self.text_encoder = SumTextEncoder(n_latents, n_characters)
         self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
@@ -143,52 +143,6 @@ class TextVAE(nn.Module):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
         return self.decode(z), mu, logvar
-
-
-# class ImageEncoder(nn.Module):
-#     """MNIST doesn't need CNN, so use a lightweight FNN"""
-#     def __init__(self, n_latents):
-#         super(ImageEncoder, self).__init__()
-#         self.net = nn.Sequential(
-#             nn.Linear(2500, 1000),
-#             nn.BatchNorm1d(400),
-#             Swish(),
-#             nn.Linear(1000, 400),
-#             nn.BatchNorm1d(400),
-#             Swish(),
-#             nn.Linear(400, 200),
-#             nn.BatchNorm1d(200),
-#             Swish(),
-#             nn.Linear(200, n_latents * 2),
-#         )
-#         self.n_latents = n_latents
-# 
-#     def forward(self, x):
-#         n_latents = self.n_latents
-#         x = self.net(x.view(-1, 2500))
-#         return x[:, :n_latents], x[:, n_latents:]
-
-
-# class ImageDecoder(nn.Module):
-#     def __init__(self, n_latents):
-#         super(ImageDecoder, self).__init__()
-#         self.net = nn.Sequential(
-#             nn.Linear(n_latents, 200),
-#             nn.BatchNorm1d(200),
-#             Swish(),
-#             nn.Linear(200, 400),
-#             nn.BatchNorm1d(400),
-#             Swish(),
-#             nn.Linear(400, 1000),
-#             nn.BatchNorm1d(1000),
-#             Swish(),
-#             nn.Linear(1000, 2500),
-#         )
-
-#     def forward(self, z):
-#         z = self.net(z)
-#         z = F.sigmoid(z)
-#         return z.view(-1, 1, 50, 50)
 
 
 class ImageEncoder(nn.Module):
@@ -360,18 +314,29 @@ class SumTextEncoder(nn.Module):
     :param n_characters: number of possible characters (10 for MNIST)
     :param n_hiddens: number of hidden units in GRU
     """
-    def __init__(self, n_latents, n_characters, n_hiddens=50):
+    def __init__(self, n_latents, n_characters):
         super(SumTextEncoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, n_hiddens)
+        self.embed = nn.Embedding(n_characters, 1000)
+        self.fnn = nn.Sequential(
+            nn.Linear(1000, 700),
+            nn.BatchNorm1d(700),
+            Swish(),
+            nn.Linear(700, 400),
+            nn.BatchNorm1d(400),
+            Swish(),
+            nn.Linear(400, 200),
+            nn.BatchNorm1d(200),
+            Swish(),
+        )
         self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
         self.n_hiddens = n_hiddens
 
     def forward(self, x):
-        n_hiddens = self.n_hiddens
         n_latents = self.n_latents
         x = self.embed(x)
         x = torch.sum(x, dim=1)  # this introduces the ordering invariance
+        x = self.fnn(x)
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
