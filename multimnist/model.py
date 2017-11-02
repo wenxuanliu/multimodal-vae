@@ -328,9 +328,8 @@ class SumTextEncoder(nn.Module):
             nn.BatchNorm1d(200),
             Swish(),
         )
-        self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
+        self.h2p = nn.Linear(200, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
-        self.n_hiddens = n_hiddens
 
     def forward(self, x):
         n_latents = self.n_latents
