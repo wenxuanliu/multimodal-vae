@@ -24,7 +24,7 @@ class MultimodalVAE(nn.Module):
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
         # self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
-        self.text_encoder = SumTextEncoder(n_latents, n_characters)
+        self.text_encoder = ConcatTextEncoder(n_latents, n_characters)
         self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
@@ -305,39 +305,38 @@ class TextDecoder(nn.Module):
         return c_out, h
 
 
-class SumTextEncoder(nn.Module):
-    """Sum of the independent embeddings of each character. 
-    This helps promote some sense of invariance. This is a much 
-    simpler model than a RNN.
+class ConcatTextEncoder(nn.Module):
+    """An RNN might be the best choice for ScrambleMNIST because 
+    RNNs are definitely not invariant to scrambling. What might work
+    is just an MLP.
 
     :param n_latents: size of latent vector
     :param n_characters: number of possible characters (10 for MNIST)
     :param n_hiddens: number of hidden units in GRU
     """
     def __init__(self, n_latents, n_characters):
-        super(SumTextEncoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, 1000)
+        super(ConcatTextEncoder, self).__init__()
+        self.embed = nn.Embedding(n_characters, 50)
         self.fnn = nn.Sequential(
-            nn.Linear(1000, 700),
-            nn.BatchNorm1d(700),
-            Swish(),
-            nn.Linear(700, 400),
-            nn.BatchNorm1d(400),
-            Swish(),
-            nn.Linear(400, 200),
+            nn.Linear(200, 200),
             nn.BatchNorm1d(200),
             Swish(),
+            nn.Linear(200, 200),
+            nn.BatchNorm1d(200),
+            Swish(),
+            nn.Linear(200, 200),
+            nn.BatchNorm1d(200),
+            Swish(),
+            # hiddens to parameters
+            nn.Linear(200, n_latents * 2)
         )
-        self.h2p = nn.Linear(n_hiddens, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
-        self.n_hiddens = n_hiddens
 
     def forward(self, x):
         n_latents = self.n_latents
         x = self.embed(x)
-        x = torch.sum(x, dim=1)  # this introduces the ordering invariance
+        x = x.view(-1, 50 * 4)
         x = self.fnn(x)
-        x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
 
