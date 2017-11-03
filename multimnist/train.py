@@ -66,8 +66,9 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128, 
+def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
                         kl_lambda=1000, lambda_xy=1, lambda_yx=1, scramble=False):
+    batch_size = recon_image.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -88,8 +89,8 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
     return image_BCE + text_BCE + KLD
 
 
-def image_loss_function(recon_image, image, mu, logvar, batch_size=128, 
-                        kl_lambda=1000, lambda_x=1):
+def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1000, lambda_x=1):
+    batch_size = recon_image.size(0)
     image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -100,8 +101,8 @@ def image_loss_function(recon_image, image, mu, logvar, batch_size=128,
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, batch_size=128, 
-                       kl_lambda=1000, lambda_y=100, scramble=False):
+def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1000, lambda_y=100, scramble=False):
+    batch_size = recon_text.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -186,15 +187,12 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
-                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
                                          scramble=args.scramble)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=args.lambda_x)
+                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -228,15 +226,12 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
-                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
                                          scramble=args.scramble)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=args.lambda_x)
+                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
