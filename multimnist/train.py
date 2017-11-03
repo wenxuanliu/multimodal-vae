@@ -139,9 +139,11 @@ if __name__ == "__main__":
                         help='how many batches to wait before logging training status')
     parser.add_argument('--anneal_kl', action='store_true', default=False, 
                         help='if True, use a fixed interval of doubling the KL term')
+    parser.add_argument('--anneal_lr', action='store_true', default=False,
+                        help='If True, half learning rate every 5 epochs')
     parser.add_argument('--lambda_xy', type=float, default=1.)
     parser.add_argument('--lambda_yx', type=float, default=1.)
-    parser.add_argument('--lambda_x', type=float, default=1)
+    parser.add_argument('--lambda_x', type=float, default=1.)
     parser.add_argument('--lambda_y', type=float, default=100.)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -269,7 +271,9 @@ if __name__ == "__main__":
 
         train(epoch)
         loss, (joint_loss, image_loss, text_loss) = test()
-        adjust_learning_rate(optimizer, epoch)
+        
+        if args.anneal_lr:
+            adjust_learning_rate(optimizer, epoch)
 
         is_best = loss < best_loss
         best_loss = min(loss, best_loss)
