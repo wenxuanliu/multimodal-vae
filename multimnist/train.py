@@ -168,6 +168,14 @@ if __name__ == "__main__":
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
 
+    def adjust_learning_rate(optimizer, epoch):
+        """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+        lr = args.lr * (0.1 ** (epoch // 5))
+        print('learning rate: {:.4f}'.format(lr))
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+
     def train(epoch):
         vae.train()
         joint_loss_meter = AverageMeter()
@@ -261,6 +269,7 @@ if __name__ == "__main__":
 
         train(epoch)
         loss, (joint_loss, image_loss, text_loss) = test()
+        adjust_learning_rate(optimizer, epoch)
 
         is_best = loss < best_loss
         best_loss = min(loss, best_loss)
