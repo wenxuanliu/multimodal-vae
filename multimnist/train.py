@@ -260,10 +260,11 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3
-    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    # schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
-        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+        if (epoch - 1) % 3 == 0 and args.anneal_kl:
             try:
                 kl_lambda = next(schedule)
             except:

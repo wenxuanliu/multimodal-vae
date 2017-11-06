@@ -23,8 +23,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
-        # self.text_encoder = ConcatTextEncoder(n_latents, n_characters)
+        # self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
+        self.text_encoder = ConcatTextEncoder(n_latents, n_characters)
         self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
@@ -318,24 +318,27 @@ class ConcatTextEncoder(nn.Module):
         super(ConcatTextEncoder, self).__init__()
         self.embed = nn.Embedding(n_characters, 50)
         self.fnn = nn.Sequential(
-            nn.Linear(200, 200),
+            nn.Linear(300, 300),
+            nn.BatchNorm1d(300),
+            Swish(),
+            nn.Linear(300, 200),
             nn.BatchNorm1d(200),
             Swish(),
-            nn.Linear(200, 200),
-            nn.BatchNorm1d(200),
-            Swish(),
-            nn.Linear(200, 200),
-            nn.BatchNorm1d(200),
+            nn.Linear(200, 100),
+            nn.BatchNorm1d(100),
             Swish(),
             # hiddens to parameters
-            nn.Linear(200, n_latents * 2)
+            nn.Linear(100, n_latents * 2)
         )
         self.n_latents = n_latents
 
     def forward(self, x):
         n_latents = self.n_latents
         x = self.embed(x)
+        xsum = torch.sum(x, dim=1)
+        xprod = torch.prod(x, dim=1)
         x = x.view(-1, 50 * 4)
+        x = torch.cat((x, xsum, xprod), dim=1)
         x = self.fnn(x)
         return x[:, :n_latents], x[:, n_latents:]
 
