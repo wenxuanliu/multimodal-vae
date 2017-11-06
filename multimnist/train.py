@@ -67,7 +67,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128, 
-                        kl_lambda=1000, lambda_xy=1, lambda_yx=1, scramble=False):
+                        kl_lambda=1, lambda_xy=1, lambda_yx=1, scramble=False):
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -89,7 +89,7 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
 
 
 def image_loss_function(recon_image, image, mu, logvar, batch_size=128, 
-                        kl_lambda=1000, lambda_x=1):
+                        kl_lambda=1, lambda_x=1):
     image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -101,7 +101,7 @@ def image_loss_function(recon_image, image, mu, logvar, batch_size=128,
 
 
 def text_loss_function(recon_text, text, mu, logvar, batch_size=128, 
-                       kl_lambda=1000, lambda_y=100, scramble=False):
+                       kl_lambda=1, lambda_y=100, scramble=False):
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
 
 
-    kl_lambda = 1e-3
+    kl_lambda = 1e-3  # default
     schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
