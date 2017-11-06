@@ -66,7 +66,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128, 
+def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
                         kl_lambda=1, lambda_xy=1, lambda_yx=1, scramble=False):
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
@@ -88,8 +88,8 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
     return image_BCE + text_BCE + KLD
 
 
-def image_loss_function(recon_image, image, mu, logvar, batch_size=128, 
-                        kl_lambda=1, lambda_x=1):
+def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1, lambda_x=1):
+    batch_size = recon_image.size(0)
     image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -100,8 +100,8 @@ def image_loss_function(recon_image, image, mu, logvar, batch_size=128,
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, batch_size=128, 
-                       kl_lambda=1, lambda_y=100, scramble=False):
+def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1, lambda_y=100, scramble=False):
+    batch_size = recon_text.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -138,9 +138,11 @@ if __name__ == "__main__":
                         help='how many batches to wait before logging training status')
     parser.add_argument('--anneal_kl', action='store_true', default=False, 
                         help='if True, use a fixed interval of doubling the KL term')
+    parser.add_argument('--anneal_lr', action='store_true', default=False,
+                        help='If True, half learning rate every 5 epochs')
     parser.add_argument('--lambda_xy', type=float, default=1.)
     parser.add_argument('--lambda_yx', type=float, default=1.)
-    parser.add_argument('--lambda_x', type=float, default=1)
+    parser.add_argument('--lambda_x', type=float, default=1.)
     parser.add_argument('--lambda_y', type=float, default=100.)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -194,15 +196,12 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
-                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
                                          scramble=args.scramble)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=args.lambda_x)
+                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -236,15 +235,12 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
-                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
                                          scramble=args.scramble)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=args.lambda_x)
+                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
@@ -263,10 +259,11 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3  # default
-    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    # schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
-        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+        if (epoch - 1) % 3 == 0 and args.anneal_kl:
             try:
                 kl_lambda = next(schedule)
             except:
@@ -274,7 +271,9 @@ if __name__ == "__main__":
 
         train(epoch)
         loss, (joint_loss, image_loss, text_loss) = test()
-        adjust_learning_rate(optimizer, epoch)
+        
+        if args.anneal_lr:
+            adjust_learning_rate(optimizer, epoch)
 
         is_best = loss < best_loss
         best_loss = min(loss, best_loss)
