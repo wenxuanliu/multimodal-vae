@@ -60,8 +60,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_latents', type=int, default=20,
                         help='size of the latent embedding')
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
+    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
@@ -87,17 +87,22 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/image_only'):
         os.makedirs('./results/image_only')
 
+    transform_train = transforms.Compose([transforms.RandomSizedCrop(224),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor()])
+    transform_test = transforms.Compose([transforms.Scale(256),
+                                         transforms.CenterCrop(224),
+                                         transforms.ToTensor()])
+ 
     train_loader = torch.utils.data.DataLoader(
     	datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
-                              transform=transform_train,
-                              target_transform=coco_char_tensor),
+                              transform=transform_train),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
 	datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
-                              transform=transform_test,
-                              target_transform=coco_char_tensor),
+                              transform=transform_test),
         batch_size=args.batch_size, shuffle=True)
 
     vae = ImageVAE(n_latents=args.n_latents)
@@ -118,8 +123,7 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar, 
-                                 batch_size=args.batch_size, kl_lambda=kl_lambda)
+            loss = loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -139,8 +143,7 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(recon_batch, data, mu, logvar,
-                                       batch_size=args.batch_size, kl_lambda=kl_lambda).data[0]
+            test_loss += loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))

@@ -215,14 +215,12 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda, 
-                                         lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, 
+                                         lambda_yx=args.lambda_yx)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=args.lambda_x)
+                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=args.lambda_y)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
