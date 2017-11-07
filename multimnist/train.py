@@ -67,7 +67,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
-                        kl_lambda=1, lambda_xy=1, lambda_yx=1, scramble=False):
+                        kl_lambda=1e-3, lambda_xy=1, lambda_yx=1, scramble=False):
     batch_size = recon_image.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
@@ -89,7 +89,7 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar,
     return image_BCE + text_BCE + KLD
 
 
-def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1, lambda_x=1):
+def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1e-3, lambda_x=1):
     batch_size = recon_image.size(0)
     image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
     # see Appendix B from VAE paper:
@@ -101,7 +101,7 @@ def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1, lambda_x=1)
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1, lambda_y=100, scramble=False):
+def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1e-3, lambda_y=100, scramble=False):
     batch_size = recon_text.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 

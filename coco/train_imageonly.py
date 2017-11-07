@@ -11,10 +11,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-import datasets
 from model import ImageVAE
 from train import AverageMeter
 
@@ -40,7 +39,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = recon_x.size(0)
     BCE = F.binary_cross_entropy(recon_x.view(-1, 512 * 6 * 6), 
                                  x.view(-1, 512 * 6 * 6))
@@ -89,12 +88,16 @@ if __name__ == "__main__":
         os.makedirs('./results/image_only')
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=True, download=True,
-                            transform=transforms.ToTensor()),
+    	datasets.CocoCaptions('./data/coco/train2014', 
+                              './data/coco/annotations/captions_train2014.json',
+                              transform=transform_train,
+                              target_transform=coco_char_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=False, download=True, 
-                            transform=transforms.ToTensor()),
+	datasets.CocoCaptions('./data/coco/val2014', 
+                              './data/coco/annotations/captions_val2014.json',
+                              transform=transform_test,
+                              target_transform=coco_char_tensor),
         batch_size=args.batch_size, shuffle=True)
 
     vae = ImageVAE(n_latents=args.n_latents)

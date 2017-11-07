@@ -42,7 +42,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1, scramble=False):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3, scramble=False):
     batch_size = recon_x.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 

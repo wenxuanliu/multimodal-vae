@@ -12,11 +12,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import transforms
+from torchvision import transforms, datasets
 
-import datasets
 from utils import n_characters, max_length
-from utils import tensor_to_string, charlist_tensor
+from utils import tensor_to_string, coco_char_tensor
 from model import TextVAE
 from train import AverageMeter
 
@@ -42,7 +41,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = recon_x.size(0)
     BCE = F.nll_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1))
     # see Appendix B from VAE paper:
@@ -85,15 +84,17 @@ if __name__ == "__main__":
         os.makedirs('./results/text_only')
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=True, download=True,
-                            transform=transforms.ToTensor(),
-                            target_transform=charlist_tensor),
+        datasets.CocoCaptions('./data/coco/train2014', 
+                              './data/coco/annotations/captions_train2014.json',
+                              transform=transform_train,
+                              target_transform=coco_char_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=False, download=True, 
-                            transform=transforms.ToTensor(),
-                            target_transform=charlist_tensor),
-        batch_size=args.batch_size, shuffle=True)
+        datasets.CocoCaptions('./data/coco/val2014', 
+                              './data/coco/annotations/captions_val2014.json',
+                              transform=transform_test,
+                              target_transform=coco_char_tensor),
+        batch_size=args.batch_size, shuffle=True) 
 
     vae = TextVAE(args.n_latents, use_cuda=args.cuda)
     if args.cuda:

@@ -40,7 +40,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = recon_x.size(0)
     BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
 
