@@ -67,17 +67,8 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
-                        kl_lambda=1e-3, lambda_xy=1, lambda_yx=1, scramble=False):
+                        kl_lambda=1e-3, lambda_xy=1, lambda_yx=1):
     batch_size = recon_image.size(0)
-    if scramble:  # if we turn scramble on, we should not penalize the model for generating 
-        # 1234 when the right answer is 4312. Location no longer matters so we should only 
-        # consider the characters themselves. To represent this in the loss, we sort the 
-        # true characters and we sort our model predictions by index i.e. 4312 --> 1234 and 
-        # then compute the log-loss.
-        text = torch.sort(text)[0]
-        ix = torch.sort(torch.max(recon_text, dim=2)[1], dim=1)[1]
-        recon_text = torch.stack([recon_text[i][ix[i]] for i in xrange(batch_size)])
-
     image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 50 * 50), 
                                                    image.view(-1, 1 * 50 * 50))
     text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
@@ -103,17 +94,8 @@ def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1e-3, lambda_x
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1e-3, lambda_y=100, scramble=False):
+def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1e-3, lambda_y=100):
     batch_size = recon_text.size(0)
-    if scramble:  # if we turn scramble on, we should not penalize the model for generating 
-        # 1234 when the right answer is 4312. Location no longer matters so we should only 
-        # consider the characters themselves. To represent this in the loss, we sort the 
-        # true characters and we sort our model predictions by index i.e. 4312 --> 1234 and 
-        # then compute the log-loss.
-        text = torch.sort(text)[0]
-        ix = torch.sort(torch.max(recon_text, dim=2)[1], dim=1)[1]
-        recon_text = torch.stack([recon_text[i][ix[i]] for i in xrange(batch_size)])
-
     text_BCE = lambda_y * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -127,8 +109,6 @@ def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1e-3, lambda_y=10
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--scramble', action='store_true', default=False, 
-                        help='If True, compute text loss by checking character existence (not order)')
     parser.add_argument('--n_latents', type=int, default=100,
                         help='size of the latent embedding (default: 100)')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
@@ -199,12 +179,11 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
-                                         scramble=args.scramble)
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
                                          kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -238,12 +217,11 @@ if __name__ == "__main__":
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx,
-                                         scramble=args.scramble)
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
                                          kl_lambda=kl_lambda, lambda_x=args.lambda_x)
             loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y, scramble=args.scramble)
+                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
@@ -262,8 +240,7 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3
-    # schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
-    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
+    schedule = iter([1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
         if (epoch - 1) % 5 == 0 and args.anneal_kl:
@@ -288,7 +265,6 @@ if __name__ == "__main__":
             'image_loss': image_loss,
             'text_loss': text_loss,
             'n_latents': args.n_latents,
-            'scramble': args.scramble,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')   
 
