@@ -41,8 +41,8 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = recon_x.size(0)
-    BCE = F.binary_cross_entropy(recon_x.view(-1, 512 * 6 * 6), 
-                                 x.view(-1, 512 * 6 * 6))
+    BCE = F.binary_cross_entropy(recon_x.view(-1, 3 * 224 * 224), 
+                                 x.view(-1, 3 * 224 * 224))
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -147,6 +147,7 @@ if __name__ == "__main__":
         return test_loss
 
 
+    kl_lambda = 1e-3
     schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):

@@ -140,6 +140,7 @@ if __name__ == "__main__":
         return test_loss
 
 
+    kl_lambda = 1e-3
     schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
