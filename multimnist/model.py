@@ -23,8 +23,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        # self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
-        self.text_encoder = ConcatTextEncoder(n_latents, n_characters)
+        self.text_encoder = TextEncoder(n_latents, n_characters, bidirectional=True)
+        # self.text_encoder = ConcatTextEncoder(n_latents, n_characters)
         self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 

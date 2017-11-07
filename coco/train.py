@@ -16,7 +16,7 @@ from torchvision.utils import save_image
 
 from model import MultimodalVAE
 from utils import n_characters, max_length
-from utils import tensor_to_string, char_tensor
+from utils import tensor_to_string, coco_char_tensor
 
 DEFAULT_N_LATENTS = 100
 
@@ -66,7 +66,8 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
                         batch_size=128, kl_lambda=1000, lambda_xy=1, lambda_yx=1):
-    image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
+    image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 150528), 
+                                                   image.view(-1, 150528))
     text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -79,7 +80,8 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar,
 
 def image_loss_function(recon_image, image, mu, logvar, 
                         batch_size=128, kl_lambda=1000, lambda_x=1):
-    image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 2500), image.view(-1, 2500))
+    image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 150528), 
+                                                  image.view(-1, 150528))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -106,8 +108,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_latents', type=int, default=100,
                         help='size of the latent embedding')
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
+    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=20, metavar='N',
                         help='number of epochs to train (default: 20)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
@@ -125,18 +127,25 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    transform_train = transforms.Compose([transforms.RandomSizedCrop(224),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor()])
+    transform_test = transforms.Compose([transforms.Scale(256),
+                                         transforms.CenterCrop(224),
+                                         transforms.ToTensor()])
+
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
-        datasets.COCOCaptions('./data/coco/train2014', 
+        datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
-                              transform=transforms.ToTensor(),
-                              target_transform=char_tensor),
+                              transform=transform_train,
+                              target_transform=coco_char_tensor),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.COCOCaptions('./data/coco/val2014', 
+        datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
-                              transform=transforms.ToTensor(),
-                              target_transform=char_tensor),
+                              transform=transform_test,
+                              target_transform=coco_char_tensor),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -233,10 +242,10 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3
-    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
-        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+        if (epoch - 1) % 5 == 0 and args.anneal_kl:
             try:
                 kl_lambda = next(schedule)
             except:

@@ -114,3 +114,4 @@ ENV/
 **/*.pdf
 **/*.png
 **/*.out
+coco/cocoapi

@@ -154,33 +154,33 @@ class ImageEncoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 32, 4, 2, 1, bias=False),
+            nn.Conv2d(3, 64, 12, 2, 1, bias=False),
             Swish(),
-            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(64),
-            Swish(),
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.Conv2d(64, 128, 12, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             Swish(),
-            nn.Conv2d(128, 256, 4, 2, 0, bias=False),
+            nn.Conv2d(128, 256, 12, 2, 1, bias=False),
             nn.BatchNorm2d(256),
+            Swish(),
+            nn.Conv2d(256, 512, 12, 2, 1, bias=False),
+            nn.BatchNorm2d(512),
             Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(256 * 2 * 2, 400),
+            nn.Linear(512 * 6 * 6, 1024),
             Swish(),
             nn.Dropout(p=0.1),
-            nn.Linear(400, 200),
+            nn.Linear(1024, 256),
             Swish(),
             nn.Dropout(p=0.1),
-            nn.Linear(200, n_latents * 2)
+            nn.Linear(256, n_latents * 2)
         )
         self.n_latents = n_latents
 
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 256 * 2 * 2)
+        x = x.view(-1, 512 * 6 * 6)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -189,26 +189,26 @@ class ImageDecoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageDecoder, self).__init__()
         self.upsample = nn.Sequential(
-            nn.Linear(n_latents, 256 * 2 * 2),
+            nn.Linear(n_latents, 512 * 6 * 6),
             Swish(),
         )
         self.hallucinate = nn.Sequential(
-            nn.ConvTranspose2d(256, 128, 4, 2, 0, bias=False),
+            nn.ConvTranspose2d(512, 256, 12, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            Swish(),
+            nn.ConvTranspose2d(256, 128, 12, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             Swish(),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(128, 64, 14, 2, 1, bias=False),
             nn.BatchNorm2d(64),
             Swish(),
-            nn.ConvTranspose2d(64, 32, 5, 2, 1, bias=False),
-            nn.BatchNorm2d(32),
-            Swish(),
-            nn.ConvTranspose2d(32, 1, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(64, 3, 16, 2, 1, bias=False),
         )
 
     def forward(self, z):
         # the input will be a vector of size |n_latents|
         z = self.upsample(z)
-        z = z.view(-1, 256, 2, 2)
+        z = z.view(-1, 512, 6, 6)
         z = self.hallucinate(z)
         return F.sigmoid(z)
 
@@ -222,9 +222,9 @@ class TextEncoder(nn.Module):
     """
     def __init__(self, n_latents, n_characters):
         super(TextEncoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, 50)
-        self.gru = nn.GRU(50, 50, 1, dropout=0.1, bidirectional=True)
-        self.h2p = nn.Linear(50, n_latents * 2)  # hiddens to parameters
+        self.embed = nn.Embedding(n_characters, 200)
+        self.gru = nn.GRU(200, 200, 1, dropout=0.1, bidirectional=True)
+        self.h2p = nn.Linear(200, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
 
     def forward(self, x):
@@ -233,7 +233,7 @@ class TextEncoder(nn.Module):
         x = x.transpose(0, 1)  # GRU expects (seq_len, batch, ...)
         x, h = self.gru(x, None)
         x = x[-1]  # take only the last value
-        x = x[:, :50] + x[:, 50:]  # sum bidirectional outputs
+        x = x[:, :200] + x[:, 200:]  # sum bidirectional outputs
         x = self.h2p(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -247,10 +247,10 @@ class TextDecoder(nn.Module):
     """
     def __init__(self, n_latents, n_characters, use_cuda=False):
         super(TextDecoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, 50)
-        self.z2h = nn.Linear(n_latents, 50)
-        self.gru = nn.GRU(50 + n_latents, 50, 2, dropout=0.1)
-        self.h2o = nn.Linear(50 + n_latents, n_characters)
+        self.embed = nn.Embedding(n_characters, 200)
+        self.z2h = nn.Linear(n_latents, 200)
+        self.gru = nn.GRU(200 + n_latents, 200, 2, dropout=0.1)
+        self.h2o = nn.Linear(200 + n_latents, n_characters)
         self.use_cuda = use_cuda
         self.n_latents = n_latents
         self.n_characters = n_characters

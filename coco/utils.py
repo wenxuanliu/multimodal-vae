@@ -24,6 +24,19 @@ EOS = n_characters + 1
 n_characters += 2
 
 
+def coco_char_tensor(string_arr, deterministic=False):
+    """Randomly sample a caption from an array of captions. Then
+    call char_tensor(.) to convert to a tensor.
+
+    :param string_arr: list of strings
+    :param deterministic: if True, return 1st index
+    :return tensor: torch.Tensor object. Not a Variable.
+    """
+    string = (string_arr[0] if deterministic 
+              else random.choice(string_arr))
+    return char_tensor(string)
+
+
 def char_tensor(string):
     """Turn a string into a tensor. If we want to do 
     batch processing, we are forced to make this tensor 
