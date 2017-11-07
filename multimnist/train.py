@@ -259,7 +259,6 @@ if __name__ == "__main__":
         return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
 
 
-    kl_lambda = 1e-3  # default
     # schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
     schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint

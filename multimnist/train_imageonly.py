@@ -40,7 +40,8 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, batch_size=128, kl_lambda=1000):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1):
+    batch_size = recon_x.size(0)
     BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
 
     # see Appendix B from VAE paper:
@@ -51,7 +52,6 @@ def loss_function(recon_x, x, mu, logvar, batch_size=128, kl_lambda=1000):
     
     # Normalise by same number of elements as in reconstruction
     KLD = KLD / batch_size * kl_lambda
-
     return BCE + KLD
 
 
@@ -143,11 +143,10 @@ if __name__ == "__main__":
         return test_loss
 
 
-    kl_lambda = 1e-3
-    schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
+    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
-        if (epoch - 1) % 10 == 0 and args.anneal_kl:
+        if (epoch - 1) % 5 == 0 and args.anneal_kl:
             try:
                 kl_lambda = next(schedule)
             except:

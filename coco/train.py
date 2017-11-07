@@ -65,9 +65,10 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
-                        batch_size=128, kl_lambda=1000, lambda_xy=1, lambda_yx=1):
-    image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 150528), 
-                                                   image.view(-1, 150528))
+                        kl_lambda=1, lambda_xy=1, lambda_yx=1):
+    batch_size = recon_image.size(0)
+    image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 512 * 6 * 6), 
+                                                   image.view(-1, 512 * 6 * 6))
     text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -78,10 +79,10 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar,
     return image_BCE + text_BCE + KLD
 
 
-def image_loss_function(recon_image, image, mu, logvar, 
-                        batch_size=128, kl_lambda=1000, lambda_x=1):
-    image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 150528), 
-                                                  image.view(-1, 150528))
+def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1, lambda_x=1):
+    batch_size = recon_image.size(0)
+    image_BCE = lambda_x * F.binary_cross_entropy(recon_image.view(-1, 512 * 6 * 6), 
+                                                  image.view(-1, 512 * 6 * 6))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -91,8 +92,8 @@ def image_loss_function(recon_image, image, mu, logvar,
     return image_BCE + KLD
 
 
-def text_loss_function(recon_text, text, mu, logvar, 
-                       batch_size=128, kl_lambda=1000, lambda_y=100):
+def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1, lambda_y=100):
+    batch_size = recon_text.size(0)
     text_BCE = lambda_y * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -241,7 +242,6 @@ if __name__ == "__main__":
         return test_loss, (test_joint_loss, test_image_loss, test_text_loss)
 
 
-    kl_lambda = 1e-3
     schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
@@ -273,7 +273,7 @@ if __name__ == "__main__":
                sample = sample.cuda()
 
             image_sample = vae.image_decoder(sample).cpu().data
-            save_image(image_sample.view(64, 1, 50, 50),
+            save_image(image_sample.view(64, 3, 224, 224),
                        './results/sample_image.png')
 
             text_sample = vae.text_decoder.generate(sample).cpu().data.long()

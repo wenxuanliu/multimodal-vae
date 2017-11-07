@@ -42,31 +42,22 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1, scramble=False):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1):
     batch_size = recon_x.size(0)
-    if scramble:  # if we turn scramble on, we should not penalize the model for generating 
-        # 1234 when the right answer is 4312. Location no longer matters so we should only 
-        # consider the characters themselves. To represent this in the loss, we sort the 
-        # true characters and we sort our model predictions by index i.e. 4312 --> 1234 and 
-        # then compute the log-loss.
-        text = torch.sort(text)[0]
-        ix = torch.sort(torch.max(recon_x, dim=2)[1], dim=1)[1]
-        recon_x = torch.stack([recon_x[i][ix[i]] for i in xrange(batch_size)])
-    
     BCE = F.nll_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50 * max_length  # for each embedding unit
+    KLD = KLD / batch_size * kl_lambda
     return BCE + KLD
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_latents', type=int, default=100,
+    parser.add_argument('--n_latents', type=int, default=200,
                         help='size of the latent embedding')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')
@@ -76,8 +67,6 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    parser.add_argument('--scramble', action='store_true', default=False, 
-                        help='If True, compute text loss by checking character existence (not order)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
