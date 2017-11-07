@@ -58,14 +58,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_latents', type=int, default=200,
                         help='size of the latent embedding')
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
+    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=20, metavar='N',
                         help='number of epochs to train (default: 20)')
-    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
-                        help='learning rate (default: 1e-3)')
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
+                        help='learning rate (default: 1e-4)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
+                        help='how many batches to wait before logging training status (default: 10)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3
-    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
+    schedule = iter([1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
         if (epoch - 1) % 5 == 0 and args.anneal_kl:

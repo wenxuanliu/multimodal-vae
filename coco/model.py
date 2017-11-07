@@ -180,12 +180,10 @@ class ImageEncoder(nn.Module):
 
     def forward(self, x):
         n_latents = self.n_latents
-        x2 = self.features(x)
-        if np.sum(np.isnan(x2.cpu().data.numpy())) > 0:
-            import pdb; pdb.set_trace()
-        x2 = x2.view(-1, 512 * 6 * 6)
-        x2 = self.classifier(x2)
-        return x2[:, :n_latents], x2[:, n_latents:]
+        x = self.features(x)
+        x = x.view(-1, 512 * 6 * 6)
+        x = self.classifier(x)
+        return x[:, :n_latents], x[:, n_latents:]
 
 
 class ImageDecoder(nn.Module):

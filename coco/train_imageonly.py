@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import os
 import shutil
 import sys
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -60,14 +61,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_latents', type=int, default=20,
                         help='size of the latent embedding')
-    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
-                        help='input batch size for training (default: 32)')
+    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
-                        help='learning rate (default: 1e-3)')
+    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
+                        help='learning rate (default: 1e-4)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
+                        help='how many batches to wait before logging training status (default: 10)')
     parser.add_argument('--anneal_kl', action='store_true', default=False, 
                         help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
@@ -123,9 +124,10 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
+            # watch out for logvar -- could explode if learning rate is too high.  
             loss = loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda)
+            loss_meter.update(loss.data[0], len(data))            
             loss.backward()
-            loss_meter.update(loss.data[0], len(data))
             optimizer.step()
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -151,7 +153,7 @@ if __name__ == "__main__":
 
 
     kl_lambda = 1e-3
-    schedule = iter([0, 1e-3, 1e-2, 1e-1, 1.0])
+    schedule = iter([1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
         if (epoch - 1) % 5 == 0 and args.anneal_kl:
