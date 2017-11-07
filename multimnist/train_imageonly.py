@@ -166,12 +166,10 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/image_only')
 
-        if is_best:
-            sample = Variable(torch.randn(64, args.n_latents))
-            if args.cuda:
-               sample = sample.cuda()
+        sample = Variable(torch.randn(64, args.n_latents))
+        if args.cuda:
+           sample = sample.cuda()
 
-            sample = vae.decode(sample).cpu()
-            save_image(sample.data.view(64, 1, 50, 50),
-                       './results/image_only/sample_image.png')
-
+        sample = vae.decode(sample).cpu()
+        save_image(sample.data.view(64, 1, 50, 50),
+                   './results/image_only/sample_image_epoch%d.png' % epoch)

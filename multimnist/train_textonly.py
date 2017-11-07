@@ -155,17 +155,15 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/text_only')
 
-        if is_best:
-            sample = Variable(torch.randn(64, 20))
-            if args.cuda:
-               sample = sample.cuda()
+        sample = Variable(torch.randn(64, 20))
+        if args.cuda:
+           sample = sample.cuda()
 
-            sample = vae.decoder.generate(sample).cpu().data.long()            
-            sample_texts = []
-            for i in xrange(sample.size(0)):
-                text = tensor_to_string(sample[i])
-                sample_texts.append(text)
-            
-            with open('./results/text_only/sample_text.txt', 'w') as fp:
-                fp.writelines(sample_texts)
-
+        sample = vae.decoder.generate(sample).cpu().data.long()            
+        sample_texts = []
+        for i in xrange(sample.size(0)):
+            text = tensor_to_string(sample[i])
+            sample_texts.append(text)
+        
+        with open('./results/text_only/sample_text_epoch%d.txt' % epoch, 'w') as fp:
+            fp.writelines(sample_texts)

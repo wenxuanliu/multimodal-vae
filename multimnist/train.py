@@ -68,6 +68,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, 
                         kl_lambda=1, lambda_xy=1, lambda_yx=1, scramble=False):
+    batch_size = recon_image.size(0)
     if scramble:  # if we turn scramble on, we should not penalize the model for generating 
         # 1234 when the right answer is 4312. Location no longer matters so we should only 
         # consider the characters themselves. To represent this in the loss, we sort the 
@@ -289,21 +290,20 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')   
 
-        if is_best:
-            sample = Variable(torch.randn(64, args.n_latents))
-            if args.cuda:
-               sample = sample.cuda()
+        sample = Variable(torch.randn(64, args.n_latents))
+        if args.cuda:
+           sample = sample.cuda()
 
-            image_sample = vae.image_decoder(sample).cpu().data
-            save_image(image_sample.view(64, 1, 50, 50),
-                       './results/sample_image.png')
+        image_sample = vae.image_decoder(sample).cpu().data
+        save_image(image_sample.view(64, 1, 50, 50),
+                   './results/sample_image_epoch%d.png' % epoch)
 
-            text_sample = vae.text_decoder.generate(sample).cpu().data.long()
-            sample_texts = []
-            for i in xrange(sample.size(0)):
-                text = tensor_to_string(text_sample[i])
-                sample_texts.append(text)
+        text_sample = vae.text_decoder.generate(sample).cpu().data.long()
+        sample_texts = []
+        for i in xrange(sample.size(0)):
+            text = tensor_to_string(text_sample[i])
+            sample_texts.append(text)
 
-            with open('./results/sample_text.txt', 'w') as fp:
-                for text in sample_texts:
-                    fp.write('%s\n' % text)
+        with open('./results/sample_text_epoch%d.txt' % epoch, 'w') as fp:
+            for text in sample_texts:
+                fp.write('%s\n' % text)
