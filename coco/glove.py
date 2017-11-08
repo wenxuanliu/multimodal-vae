@@ -26,12 +26,39 @@ class GloVe(object):
         dictionary. 
 
         :param vec: PyTorch vector
+                    size 300
         :param n: number of "close-by" vectors to return
                   (default: 10)
         """
-        all_dists = [(w, torch.dist(vec, get_word(w))) 
+        all_dists = [(w, torch.dist(vec, self.get_word(w))) 
                      for w in self.glove.itos]
         return sorted(all_dists, key=lambda t: t[1])[:n]
+
+    def closest_batch(self, vec_batch):
+        """Find closest words for a batch of vectors. This 
+        loops through all glove training vectors once.
+
+        :param vec: PyTorch vector
+                    size N x 300
+        """
+        batch_size = len(vec_batch)
+        dict_size = len(self.glove.itos)
+        all_dists = torch.zeros((batch_size, dict_size))
+
+        for iw, word in enumerate(self.glove.itos):
+            for iv, vec in enumerate(vec_batch):
+                dist = torch.dist(vec, self.get_word(word ))
+                all_dists[iv, iw] = dist
+
+        top_dist = torch.zeros(batch_size)
+        for ix in xrange(batch_size):
+            top_dist[ix] = torch.sort(all_dists[ix, :], dim=1)[1][0]
+
+        words = []
+        for ix in xrange(batch_size):
+            words.append(self.glove.itos[top_dist[ix]])
+
+        return words
 
     def analogy(w1, w2, w3, n=5, filter_given=True):
         """Return 4th word in a 4 word analogy game.

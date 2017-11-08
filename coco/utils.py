@@ -1,72 +1,45 @@
-"""Utilities for handling text, images, etc.
-Unlike MultiMNIST, we need to include far more characters.
-This is a much more difficult learning problem.
-"""
+"""Random helper variables and utilities."""
 
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import string
 import random
-import time
-import math
-import torch
-from torch.autograd import Variable
+from glove import GloVe
+from nltk.tokenize import word_tokenize
 
-max_length = 100  # max number of characters in a description
-all_characters = string.printable
-n_characters = len(all_characters)
-SOS = n_characters
-# in MultiMNIST, we could just do a FILLER character. here I 
-# think we want to actually learn the an end of sentence character.
-EOS = n_characters + 1
-n_characters += 2
+MAX_WORDS = 100  # max number of words in a sentence
+SOS = '<s>'
+EOS = '</s>'
 
 
-def coco_char_tensor(string_arr, deterministic=False):
-    """Randomly sample a caption from an array of captions. Then
-    call char_tensor(.) to convert to a tensor.
+def text_transformer(deterministic=False):
+    """Returns a function that should be used as a transformer
+    in DataLoader for COCO captions.
 
-    :param string_arr: list of strings
-    :param deterministic: if True, return 1st index
-    :return tensor: torch.Tensor object. Not a Variable.
+    :param deterministic: COCO has 5 captions for each image.
+                          if True, always take the 1st caption.
+                          if False, randomly choose a caption.
+    :return transform_text: function that takes a tuple of five 
+                            strings as input
     """
-    string = (string_arr[0] if deterministic 
-              else random.choice(string_arr))
-    return char_tensor(string)
+    glove = GloVe()
 
+    def transform_text(five_sentences):
+        if deterministic:
+            sentence = five_sentences[0]
+        else:
+            sentence = random.choice(five_sentences)
 
-def char_tensor(string):
-    """Turn a string into a tensor. If we want to do 
-    batch processing, we are forced to make this tensor 
-    uniform shaped; pad with EOS characters.
+        words = word_tokenize(sentence)
+        if len(words) > MAX_WORDS:
+            words = words[:MAX_WORDS]
+        words = [SOS] + words + [EOS]
 
-    :param string: str object
-    :return tensor: torch.Tensor object. Not a Variable.
-    """
-    if len(string) > max_length:
-        string = string[:max_length]
-    tensor = torch.ones(max_length).long() * EOS
-    for c in xrange(len(string)):
-        tensor[c] = all_characters.index(string[c])
-    return tensor
-    
+        embeddings = torch.zeros((MAX_WORDS + 2, 300))
+        for i, word in enumerate(words):
+            embeddings[i] = glove.get_word(word)
 
-def tensor_to_string(tensor):
-    """Identical to tensor_to_string but for LongTensors."""
-    string = ''
-    for i in range(tensor.size(0)):
-        top_i = tensor[i]
-        string += index_to_char(top_i)
-    return string
+        return embeddings
 
-
-def index_to_char(top_i):
-    if top_i == SOS:
-        return '^'
-    elif top_i == EOS:
-        return '$'
-    else:
-        return all_characters[top_i]
-
+    return transform_text

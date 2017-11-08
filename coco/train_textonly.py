@@ -3,8 +3,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
-import shutil
 import sys
+import shutil
 import numpy as np
 
 import torch
@@ -14,10 +14,9 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import transforms, datasets
 
-from utils import n_characters, max_length
-from utils import tensor_to_string, coco_char_tensor
 from model import TextVAE
 from train import AverageMeter
+from utils import text_transformer
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -43,7 +42,10 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = recon_x.size(0)
-    BCE = F.nll_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1))
+    # recon_x and x are both GloVe vectors; we want to then minimize
+    # the L2 distance in GloVe space.
+    BCE = F.mse_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1),
+                     size_average=True)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -83,15 +85,28 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/text_only'):
         os.makedirs('./results/text_only')
 
+    # even though we don't use images, we need the transformations to be 
+    # able to use DataLoader.
+    transform_train = transforms.Compose([transforms.RandomSizedCrop(224),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.ToTensor()])
+    transform_test = transforms.Compose([transforms.Scale(256),
+                                         transforms.CenterCrop(224),
+                                         transforms.ToTensor()])
+    # transformer for text.
+    transform_text = text_transformer(deterministic=False)
+
     train_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
-                              target_transform=coco_char_tensor),
+                              transform=transform_train,
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
-                              target_transform=coco_char_tensor),
+                              transform=transform_test,
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True) 
 
     vae = TextVAE(args.n_latents, use_cuda=args.cuda)
@@ -165,11 +180,6 @@ if __name__ == "__main__":
         if args.cuda:
            sample = sample.cuda()
 
-        sample = vae.decoder.generate(sample).cpu().data.long()            
-        sample_texts = []
-        for i in xrange(sample.size(0)):
-            text = tensor_to_string(sample[i])
-            sample_texts.append(text)
-        
+        sample_texts = vae.decoder.generate(sample)
         with open('./results/text_only/sample_text_epoch%d.txt' % epoch, 'w') as fp:
             fp.writelines(sample_texts)

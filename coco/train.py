@@ -15,8 +15,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from model import MultimodalVAE
-from utils import n_characters, max_length
-from utils import tensor_to_string, coco_char_tensor
+from utils import text_transformer
 
 DEFAULT_N_LATENTS = 100
 
@@ -69,7 +68,8 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar,
     batch_size = recon_image.size(0)
     image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 3 * 224 * 224), 
                                                    image.view(-1, 3 * 224 * 224))
-    text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+    text_BCE = lambda_yx * F.mse_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1),
+                                      size_average=True)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -94,7 +94,10 @@ def image_loss_function(recon_image, image, mu, logvar, kl_lambda=1e-3, lambda_x
 
 def text_loss_function(recon_text, text, mu, logvar, kl_lambda=1e-3, lambda_y=100):
     batch_size = recon_text.size(0)
-    text_BCE = lambda_y * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+    # recon_text and text are both GloVe vectors; we want to then minimize
+    # the L2 distance in GloVe space.
+    text_BCE = lambda_y * F.mse_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1),
+                                     size_average=True)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -134,6 +137,8 @@ if __name__ == "__main__":
     transform_test = transforms.Compose([transforms.Scale(256),
                                          transforms.CenterCrop(224),
                                          transforms.ToTensor()])
+    # transformer for text.
+    transform_text = text_transformer(deterministic=False)
 
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
@@ -273,11 +278,6 @@ if __name__ == "__main__":
             save_image(image_sample.view(64, 3, 224, 224),
                        './results/sample_image.png')
 
-            text_sample = vae.text_decoder.generate(sample).cpu().data.long()
-            sample_texts = []
-            for i in xrange(sample.size(0)):
-                text = tensor_to_string(text_sample[i])
-                sample_texts.append(text)
-
+            sample_texts = vae.text_decoder.generate(sample)
             with open('./results/sample_text.txt', 'w') as fp:
                 fp.writelines(sample_texts)

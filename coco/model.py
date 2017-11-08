@@ -15,8 +15,8 @@ from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
 import numpy as np
-from utils import n_characters, max_length
-from utils import SOS
+from glove import GloVe
+from utils import MAX_WORDS, SOS, EOS
 
 
 class MultimodalVAE(nn.Module):
@@ -219,18 +219,22 @@ class TextEncoder(nn.Module):
     to a bidirectional RNN.
 
     :param n_latents: size of latent vector
+    :param n_embedding: size of GloVe embedding
+                        (default: 300)
     :param n_characters: number of possible characters (10 for MNIST)
     """
-    def __init__(self, n_latents, n_characters):
+    def __init__(self, n_latents, n_embedding=300):
         super(TextEncoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, 200)
-        self.gru = nn.GRU(200, 200, 1, dropout=0.1, bidirectional=True)
+        # input size is 300 since GloVe vectors are size 300
+        self.gru = nn.GRU(n_embedding, 200, 1, dropout=0.1, bidirectional=True)
         self.h2p = nn.Linear(200, n_latents * 2)  # hiddens to parameters
         self.n_latents = n_latents
+        self.n_embedding = n_embedding
 
     def forward(self, x):
+        # input x is a vector of (batch, seq_len, 300)
+        # where seq_len = MAX_WORDS
         n_latents = self.n_latents
-        x = self.embed(x)
         x = x.transpose(0, 1)  # GRU expects (seq_len, batch, ...)
         x, h = self.gru(x, None)
         x = x[-1]  # take only the last value
@@ -243,59 +247,71 @@ class TextDecoder(nn.Module):
     """GRU for text decoding. 
 
     :param n_latents: size of latent vector
-    :param n_characters: size of characters (10 for MNIST)
+    :param n_embedding: size of GloVe embedding
+                        (default: 300)
     :param use_cuda: whether to use cuda tensors
     """
-    def __init__(self, n_latents, n_characters, use_cuda=False):
+    def __init__(self, n_latents, n_embedding=300, use_cuda=False):
         super(TextDecoder, self).__init__()
-        self.embed = nn.Embedding(n_characters, 200)
         self.z2h = nn.Linear(n_latents, 200)
-        self.gru = nn.GRU(200 + n_latents, 200, 2, dropout=0.1)
-        self.h2o = nn.Linear(200 + n_latents, n_characters)
+        self.gru = nn.GRU(n_embedding + n_latents, 200, 2, dropout=0.1)
+        self.h2o = nn.Linear(n_embedding + n_latents, n_embedding)
+        self.glove = GloVe()
         self.use_cuda = use_cuda
         self.n_latents = n_latents
-        self.n_characters = n_characters
+        self.n_embedding = n_embedding
 
     def forward(self, z):
         n_latents = self.n_latents
-        n_characters = self.n_characters
         batch_size = z.size(0)
-        # first input character is SOS
-        c_in = Variable(torch.LongTensor([SOS]).repeat(batch_size))
-        # store output word here
-        words = Variable(torch.zeros(batch_size, max_length, n_characters))
+        # when generating, first word is always SOS - get GloVe embedding for it
+        sos = self.glove.get_word(SOS)
+        w_in = Variable(sos.repeat(batch_size).view(batch_size, self.n_embedding))
+        # when generating, the default is EOS - we can initialize the entire sentence
+        # defaulted to EOS.
+        eos = self.glove.get_word(EOS)
+        sentence = Variable(eos.repeat(batch_size, MAX_WORDS).view(
+            batch_size, MAX_WORDS, self.n_embedding))
         if self.use_cuda:
-            c_in = c_in.cuda()
-            words = words.cuda()
-        # get hiddens from latents
+            w_in = w_in.cuda()
+            sentence = sentence.cuda()
+        # get initial hiddens from latents
         h = self.z2h(z).unsqueeze(0).repeat(2, 1, 1)
         # look through n_steps and generate characters
-        for i in xrange(max_length):
-            c_out, h = self.step(i, z, c_in, h)
-            sample = torch.max(c_out, dim=1)[1]
-            words[:, i] = c_out
-            c_in = sample
+        for i in xrange(MAX_WORDS):
+            w_out, h = self.step(i, z, w_in, h)
+            words[:, i] = w_out
+            w_in = w_out
 
         return words  # (batch_size, seq_len, ...)
 
     def generate(self, z):
-        """Like, but we are not given an input text"""
-        words = self.forward(z)
-        batch_size = words.size(0)
-        char_size = words.size(2)
-        sample = torch.multinomial(words.view(-1, char_size), 1)
-        return sample.view(batch_size, max_length)
+        words = self.forward(z)  # shape is (batch_size, seq_len, n_embedding)
+        words = words.view(-1, self.n_embedding)
+        # this returns a list of strings of shape |batch_size * seq_len|
+        strings = self.glove.closest_batch(words)
+        # reshape this back into a list of size batch_size with space separated
+        # words.
+        reshape = []
+        for i in xrange(words.size(0)):
+            sentence = []
+            for j in xrange(words.size(1)):
+                ix = i * words.size(0) + j
+                sentence.append(strings[ix])
+            sentence = ' '.join(sentence)
+            reshape.append(sentence)
 
-    def step(self, ix, z, c_in, h):
-        c_in = swish(self.embed(c_in))
-        c_in = torch.cat((c_in, z), dim=1)
-        c_in = c_in.unsqueeze(0)
-        c_out, h = self.gru(c_in, h)
-        c_out = c_out.squeeze(0)
-        c_out = torch.cat((c_out, z), dim=1)
-        c_out = self.h2o(c_out)
-        c_out = F.log_softmax(c_out)
-        return c_out, h
+        return reshape
+
+    def step(self, ix, z, w_in, h):
+        # w_in is a (batch, n_embedding)
+        w_in = torch.cat((w_in, z), dim=1)  # n_embedding + n_latents
+        w_in = w_in.unsqueeze(0)
+        w_out, h = self.gru(w_in, h)
+        w_out = w_out.squeeze(0)
+        w_out = torch.cat((w_out, z), dim=1)
+        w_out = self.h2o(w_out)
+        return w_out, h
 
 
 class ProductOfExperts(nn.Module):
