@@ -114,4 +114,5 @@ ENV/
 **/*.pdf
 **/*.png
 **/*.out
+**/.vector_cache
 coco/cocoapi
