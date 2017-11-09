@@ -175,15 +175,15 @@ if __name__ == "__main__":
             # for each batch, use 3 types of examples (joint, image-only, and text-only)
             # this way, we can hope to reconstruct both modalities from one
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
                                          kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y)
+            loss_2 = joint_loss_function(recon_image_2, image, recon_text_2, text, mu_2, logvar_2,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+            loss_3 = joint_loss_function(recon_image_3, image, recon_text_3, text, mu_3, logvar_3,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -213,15 +213,15 @@ if __name__ == "__main__":
             image, text = Variable(image), Variable(text)
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
             
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
                                          kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         kl_lambda=kl_lambda, lambda_x=args.lambda_x)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        kl_lambda=kl_lambda, lambda_y=args.lambda_y)
+            loss_2 = joint_loss_function(recon_image_2, image, recon_text_2, text, mu_2, logvar_2,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+            loss_3 = joint_loss_function(recon_image_3, image, recon_text_3, text, mu_3, logvar_3,
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
