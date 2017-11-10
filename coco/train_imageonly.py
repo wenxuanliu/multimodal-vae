@@ -72,11 +72,11 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/image_only'):
         os.makedirs('./results/image_only')
 
-    transform_train = transforms.Compose([transforms.RandomSizedCrop(224),
-                                          transforms.RandomHorizontalFlip(),
+    transform_train = transforms.Compose([transforms.Scale(75),
+                                          transforms.CenterCrop(64),
                                           transforms.ToTensor()])
-    transform_test = transforms.Compose([transforms.Scale(256),
-                                         transforms.CenterCrop(224),
+    transform_test = transforms.Compose([transforms.Scale(75),
+                                         transforms.CenterCrop(64),
                                          transforms.ToTensor()])
  
     train_loader = torch.utils.data.DataLoader(
@@ -166,5 +166,5 @@ if __name__ == "__main__":
            sample = sample.cuda()
 
         sample = vae.decode(sample).cpu()
-        save_image(sample.data.view(64, 3, 224, 224),
+        save_image(sample.data.view(64, 3, 64, 64),
                    './results/image_only/sample_image_epoch%d.png' % epoch)
