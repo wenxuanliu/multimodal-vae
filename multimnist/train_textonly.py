@@ -18,7 +18,7 @@ import datasets
 from utils import n_characters, max_length
 from utils import tensor_to_string, charlist_tensor
 from model import TextVAE
-from train import AverageMeter
+from train import loss_function, AverageMeter
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -42,18 +42,6 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
-    batch_size = recon_x.size(0)
-    BCE = F.nll_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1))
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50 * max_length  # for each embedding unit
-    return BCE + KLD
-
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -67,6 +55,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
+    parser.add_argument('--anneal_kl', action='store_true', default=False, 
+                        help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -112,7 +102,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar)
+            loss = loss_function(mu, logvar, recon_text=recon_batch, text=data, 
+                                 kl_lambda=kl_lambda, lambda_yx=1.)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -132,7 +123,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
+            test_loss += loss_function(mu, logvar, recon_text=recon_batch, text=data, 
+                                       kl_lambda=kl_lambda, lambda_yx=1.).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))

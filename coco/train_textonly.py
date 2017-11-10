@@ -15,7 +15,7 @@ from torch.autograd import Variable
 from torchvision import transforms, datasets
 
 from model import TextVAE
-from train import AverageMeter
+from train import loss_function, AverageMeter
 from utils import text_transformer
 
 
@@ -40,21 +40,6 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
-    batch_size = recon_x.size(0)
-    # recon_x and x are both GloVe vectors; we want to then minimize
-    # the L2 distance in GloVe space.
-    BCE = F.mse_loss(recon_x.view(-1, recon_x.size(2)), x.view(-1),
-                     size_average=True)
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD = KLD / batch_size * kl_lambda
-    return BCE + KLD
-
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -68,6 +53,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-4)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status (default: 10)')
+    parser.add_argument('--anneal_kl', action='store_true', default=False, 
+                        help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -126,7 +113,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar)
+            loss = loss_function(mu, logvar, recon_text=recon_batch, text=data, 
+                                 kl_lambda=kl_lambda, lambda_yx=1.)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -146,7 +134,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(recon_batch, data, mu, logvar).data[0]
+            test_loss += loss_function(mu, logvar, recon_text=recon_batch, text=data, 
+                                       kl_lambda=kl_lambda, lambda_yx=1.).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))
