@@ -165,6 +165,7 @@ if __name__ == "__main__":
         joint_loss_meter = AverageMeter()
         image_loss_meter = AverageMeter()
         text_loss_meter = AverageMeter()
+        image2_loss_meter = AverageMeter()
 
         for batch_idx, (image, text) in enumerate(train_loader):
             if args.cuda:
@@ -181,9 +182,9 @@ if __name__ == "__main__":
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
                                          kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = joint_loss_function(recon_image_2, image, recon_text_2, text, mu_2, logvar_2,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=1.)
             loss_3 = joint_loss_function(recon_image_3, image, recon_text_3, text, mu_3, logvar_3,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+                                         kl_lambda=kl_lambda, lambda_xy=0., lambda_yx=args.lambda_yx)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             joint_loss_meter.update(loss_1.data[0], len(image))
@@ -206,6 +207,7 @@ if __name__ == "__main__":
         test_joint_loss = 0
         test_image_loss = 0
         test_text_loss = 0
+        test_image2_loss = 0
 
         for batch_idx, (image, text) in enumerate(test_loader):
             if args.cuda:
@@ -219,9 +221,9 @@ if __name__ == "__main__":
             loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
                                          kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
             loss_2 = joint_loss_function(recon_image_2, image, recon_text_2, text, mu_2, logvar_2,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=1.)
             loss_3 = joint_loss_function(recon_image_3, image, recon_text_3, text, mu_3, logvar_3,
-                                         kl_lambda=kl_lambda, lambda_xy=args.lambda_xy, lambda_yx=args.lambda_yx)
+                                         kl_lambda=kl_lambda, lambda_xy=0., lambda_yx=args.lambda_yx)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
