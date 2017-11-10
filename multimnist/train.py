@@ -161,7 +161,7 @@ if __name__ == "__main__":
                                    lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
                                    recon_text=recon_text_2, text=text, kl_lambda=kl_lambda, 
-                                   lambda_xy=1., lambda_yx=1.)
+                                   lambda_xy=1., lambda_yx=0.5)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                    recon_text=recon_text_3, text=text, kl_lambda=kl_lambda, 
                                    lambda_xy=0., lambda_yx=1.)
@@ -204,7 +204,7 @@ if __name__ == "__main__":
                                    lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
                                    recon_text=recon_text_2, text=text, kl_lambda=kl_lambda, 
-                                   lambda_xy=1., lambda_yx=1.)
+                                   lambda_xy=1., lambda_yx=0.5)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                    recon_text=recon_text_3, text=text, kl_lambda=kl_lambda, 
                                    lambda_xy=0., lambda_yx=1.)
