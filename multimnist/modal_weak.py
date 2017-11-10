@@ -31,7 +31,7 @@ from train import AverageMeter
 from train import save_checkpoint, load_checkpoint
 from utils import n_characters, max_length
 from utils import tensor_to_string, charlist_tensor
-from train import joint_loss_function, image_loss_function, text_loss_function
+from train import loss_function
 
 
 def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size=128, 
@@ -87,26 +87,24 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
             optimizer.zero_grad()
             
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            loss = joint_loss_function( recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                        batch_size=batch_size, kl_lambda=kl_lambda,
-                                        lambda_xy=1., lambda_yx=1.)
+            loss = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                 recon_text=recon_text_1, text=text, kl_lambda=kl_lambda,
+                                 lambda_xy=1., lambda_yx=1.)
             joint_loss_meter.update(loss.data[0], len(image))
 
             flip = np.random.random()
             if flip < weak_perc_m1:
                 recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-                loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                             batch_size=batch_size, kl_lambda=kl_lambda,
-                                             lambda_x=1.)
+                loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                       kl_lambda=kl_lambda, lambda_xy=1.)
                 image_loss_meter.update(loss_2.data[0], len(image))
                 loss += loss_2
 
             flip = np.random.random()
             if flip > weak_perc_m2:
                 _, recon_text_3, mu_3, logvar_3 = vae(text=text)
-                loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                            batch_size=batch_size, kl_lambda=kl_lambda,
-                                            lambda_y=100.)
+                loss_3 = text_loss_function(mu_3, logvar_3, recon_text=recon_text_3, text=text, 
+                                            kl_lambda=kl_lambda, lambda_y=100.)
                 text_loss_meter.update(loss_3.data[0], len(text))
                 loss += loss_3 
 
@@ -139,15 +137,13 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
             recon_image_2, _, mu_2, logvar_2 = vae(image=image)
             _, recon_text_3, mu_3, logvar_3 = vae(text=text)
 
-            loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=batch_size, kl_lambda=kl_lambda,
-                                         lambda_xy=1., lambda_yx=1.)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=batch_size, kl_lambda=kl_lambda,
-                                         lambda_x=1.)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=batch_size, kl_lambda=kl_lambda,
-                                        lambda_y=100.)
+            loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                   recon_text=recon_text_1, text=text, kl_lambda=kl_lambda,
+                                   lambda_xy=1., lambda_yx=1.)
+            loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                   kl_lambda=kl_lambda, lambda_xy=1.)
+            loss_3 = text_loss_function(mu_3, logvar_3, recon_text=recon_text_3, text=text, 
+                                        kl_lambda=kl_lambda, lambda_y=100.)
             
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
