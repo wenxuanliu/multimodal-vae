@@ -104,10 +104,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    transform_train = transforms.Compose([transforms.Scale(75),
+    transform_train = transforms.Compose([transforms.Scale(64),
                                           transforms.CenterCrop(64),
                                           transforms.ToTensor()])
-    transform_test = transforms.Compose([transforms.Scale(75),
+    transform_test = transforms.Compose([transforms.Scale(64),
                                          transforms.CenterCrop(64),
                                          transforms.ToTensor()])
     # transformer for text.

@@ -45,8 +45,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_latents', type=int, default=20,
                         help='size of the latent embedding')
-    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
+    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
+                        help='input batch size for training (default: 128)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
@@ -72,10 +72,10 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/image_only'):
         os.makedirs('./results/image_only')
 
-    transform_train = transforms.Compose([transforms.Scale(75),
+    transform_train = transforms.Compose([transforms.Scale(64),
                                           transforms.CenterCrop(64),
                                           transforms.ToTensor()])
-    transform_test = transforms.Compose([transforms.Scale(75),
+    transform_test = transforms.Compose([transforms.Scale(64),
                                          transforms.CenterCrop(64),
                                          transforms.ToTensor()])
  
