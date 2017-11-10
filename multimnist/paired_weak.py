@@ -139,7 +139,6 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
                 
             # in test i always care about the joint loss -- so we don't anneal
             # back joint examples as we do in train
-
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
             recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
             recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
