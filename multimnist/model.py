@@ -78,10 +78,10 @@ class MultimodalVAE(nn.Module):
 
         # add p(z) as an expert; regularizes for missing modalities
         # https://arxiv.org/pdf/1705.10762.pdf
-        prior_mu, prior_logvar = self.prior((1, mu.size(1), mu.size(2)),
-                                             use_cuda=mu.is_cuda)
-        mu = torch.cat((mu, prior_mu), dim=0)
-        logvar = torch.cat((logvar, prior_logvar), dim=0)
+        # prior_mu, prior_logvar = self.prior((1, mu.size(1), mu.size(2)),
+        #                                      use_cuda=mu.is_cuda)
+        # mu = torch.cat((mu, prior_mu), dim=0)
+        # logvar = torch.cat((logvar, prior_logvar), dim=0)
         # product of experts to combine gaussians
         mu, logvar = self.experts(mu, logvar)
         # reparametrization trick to sample
