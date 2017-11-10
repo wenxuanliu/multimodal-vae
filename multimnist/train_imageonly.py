@@ -16,7 +16,7 @@ from torchvision.utils import save_image
 
 import datasets
 from model import ImageVAE
-from train import AverageMeter
+from train import loss_function, AverageMeter
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -38,20 +38,6 @@ def load_checkpoint(file_path, use_cuda=False):
     vae.load_state_dict(checkpoint['state_dict'])
     
     return vae
-
-
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
-    batch_size = recon_x.size(0)
-    BCE = F.binary_cross_entropy(recon_x.view(-1, 2500), x.view(-1, 2500))
-
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    # Normalise by same number of elements as in reconstruction
-    KLD = KLD / batch_size * kl_lambda
-    return BCE + KLD
 
 
 if __name__ == "__main__":
@@ -113,7 +99,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_batch, mu, logvar = vae(data)
-            loss = loss_function(recon_batch, data, mu, logvar, kl_lambda=kl_lambda)
+            loss = loss_function(mu, logvar, recon_image=recon_batch, image=data, 
+                                 kl_lambda=kl_lambda, lambda_xy=1.)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -133,8 +120,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(recon_batch, data, mu, logvar,
-                                       kl_lambda=kl_lambda).data[0]
+            test_loss += loss_function(mu, logvar, recon_image=recon_batch, image=data, 
+                                       kl_lambda=kl_lambda, lambda_xy=1.).data[0]
 
         test_loss /= len(test_loader.dataset)
         print('====> Test set loss: {:.4f}'.format(test_loss))

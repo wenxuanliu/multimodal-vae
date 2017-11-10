@@ -92,19 +92,24 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
                                  lambda_xy=1., lambda_yx=1.)
             joint_loss_meter.update(loss.data[0], len(image))
 
+            # depending on this flip, we decide whether or not to show a modality 
+            # versus another one.
             flip = np.random.random()
+
             if flip < weak_perc_m1:
-                recon_image_2, _, mu_2, logvar_2 = vae(image=image)
+                recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
                 loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                       kl_lambda=kl_lambda, lambda_xy=1.)
+                                       recon_text=recon_text_2, text=text, kl_lambda=kl_lambda, 
+                                       lambda_xy=1., lambda_yx=1.)
                 image_loss_meter.update(loss_2.data[0], len(image))
                 loss += loss_2
 
             flip = np.random.random()
             if flip > weak_perc_m2:
-                _, recon_text_3, mu_3, logvar_3 = vae(text=text)
-                loss_3 = text_loss_function(mu_3, logvar_3, recon_text=recon_text_3, text=text, 
-                                            kl_lambda=kl_lambda, lambda_y=100.)
+                recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
+                loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                       recon_text=recon_text_3, text=text, kl_lambda=kl_lambda, 
+                                       lambda_xy=0., lambda_yx=1.)
                 text_loss_meter.update(loss_3.data[0], len(text))
                 loss += loss_3 
 
@@ -133,17 +138,21 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
                 image, text = image.cuda(), text.cuda()
             image, text = Variable(image), Variable(text)
                 
+            # in test i always care about the joint loss -- so we don't anneal
+            # back joint examples as we do in train
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
 
             loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
                                    recon_text=recon_text_1, text=text, kl_lambda=kl_lambda,
                                    lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                   kl_lambda=kl_lambda, lambda_xy=1.)
-            loss_3 = text_loss_function(mu_3, logvar_3, recon_text=recon_text_3, text=text, 
-                                        kl_lambda=kl_lambda, lambda_y=100.)
+                                       recon_text=recon_text_2, text=text, kl_lambda=kl_lambda,
+                                       lambda_xy=1., lambda_yx=1.)
+            loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                       recon_text=recon_text_3, text=text, kl_lambda=kl_lambda,
+                                       lambda_xy=0., lambda_yx=1.)
             
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]

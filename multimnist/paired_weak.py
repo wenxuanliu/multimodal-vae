@@ -96,7 +96,7 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
                 recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
                 loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                        recon_text=recon_text_3, text=text, kl_lambda=kl_lambda,
-                                       lambda_xy=1., lambda_yx=1.)
+                                       lambda_xy=0., lambda_yx=1.)
 
                 loss = loss_1 + loss_2 + loss_3
                 joint_loss_meter.update(loss_1.data[0], len(image))
@@ -152,7 +152,7 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
                                        lambda_xy=1., lambda_yx=1.)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                        recon_text=recon_text_3, text=text, kl_lambda=kl_lambda,
-                                       lambda_xy=1., lambda_yx=1.)
+                                       lambda_xy=0., lambda_yx=1.)
             
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
@@ -174,7 +174,7 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
     schedule = iter([5e-5, 1e-4, 5e-4, 1e-3])
 
     for epoch in range(1, epochs + 1):
-        if (epoch - 1) % 10 == 0:
+        if (epoch - 1) % 5 == 0 and args.anneal_kl:
             try:
                 kl_lambda = next(schedule)
             except:
@@ -209,6 +209,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
+    parser.add_argument('--anneal_kl', action='store_true', default=False, 
+                        help='if True, use a fixed interval of doubling the KL term')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
