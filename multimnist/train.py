@@ -142,6 +142,7 @@ if __name__ == "__main__":
         joint_loss_meter = AverageMeter()
         image_loss_meter = AverageMeter()
         text_loss_meter = AverageMeter()
+        image2_loss_meter = AverageMeter()
 
         for batch_idx, (image, text) in enumerate(train_loader):
             if args.cuda:
@@ -187,6 +188,7 @@ if __name__ == "__main__":
         test_joint_loss = 0
         test_image_loss = 0
         test_text_loss = 0
+        test_image2_loss = 0
 
         for batch_idx, (image, text) in enumerate(test_loader):
             if args.cuda:
