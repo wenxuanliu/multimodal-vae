@@ -75,7 +75,7 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
         image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 50 * 50), 
                                                        image.view(-1, 1 * 50 * 50))
 
-    if text_image is not None and text is not None:
+    if recon_text is not None and text is not None:
         text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
 
     # see Appendix B from VAE paper:
