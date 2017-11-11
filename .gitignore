@@ -116,3 +116,4 @@ ENV/
 **/*.out
 **/.vector_cache
 coco/cocoapi
+speech/audio
