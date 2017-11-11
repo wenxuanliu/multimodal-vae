@@ -1,5 +1,11 @@
 """Download the Librispeech dataset
 http://www.openslr.org/12/
+
+Prerequisites:
+    - pip install tqdm
+    - pip install wget
+    - sudo apt-get install sox
+
 """
 
 from __future__ import division
@@ -14,7 +20,7 @@ import subprocess
 
 import io
 import fnmatch
-from tpdm import tqdm
+from tqdm import tqdm
 
 
 LIBRI_SPEECH_URLS = {
