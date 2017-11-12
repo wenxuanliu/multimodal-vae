@@ -138,8 +138,8 @@ if __name__ == "__main__":
         return test_loss
 
 
-    kl_lambda = 1e-3
-    schedule = iter([1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0])
+    kl_lambda = 5e-4
+    schedule = iter([1e-5, 1e-4, 1e-3])  # , 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
     for epoch in range(1, args.epochs + 1):
         if (epoch - 1) % 5 == 0 and args.anneal_kl:
