@@ -2,6 +2,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import os
+import json
+
 import torch
 from torch.autograd import Variable
 
@@ -28,6 +31,7 @@ class AverageMeter(object):
 
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
@@ -66,3 +70,6 @@ if __name__ == "__main__":
         for i, data in enumerate(train_loader):
             inputs, targets, input_percentages, target_sizes = data
             import pdb; pdb.set_trace()
+
+    train(0)
+
