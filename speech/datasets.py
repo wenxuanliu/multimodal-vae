@@ -1,5 +1,9 @@
 """Copy-pasta from https://github.com/SeanNaren/deepspeech.pytorch"""
 
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+
 import os
 import subprocess
 from tempfile import NamedTemporaryFile
