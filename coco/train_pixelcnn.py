@@ -102,12 +102,17 @@ if __name__ == "__main__":
         for batch_idx, (data, _) in enumerate(train_loader):
             if args.cuda:
                 data = data.cuda()
+            n_data = len(data)
+
             data = Variable(data)
             target = Variable((data.data * 255).long())
 
             optimizer.zero_grad()
             output = model(data)
-            loss = F.cross_entropy(output, target)
+            
+            loss = 0
+            for i in xrange(3):  # loop through each RGB dimension
+                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -128,11 +133,14 @@ if __name__ == "__main__":
         for batch_idx, (data, _) in enumerate(test_loader):
             if args.cuda:
                 data = data.cuda()
+            n_data = len(data)
             data = Variable(data)
             target = Variable((data.data * 255).long())
-                
             output = model(data)
-            loss = F.cross_entropy(output, target)
+            
+            loss = 0
+            for i in xrange(3):  # loop through dimensions for each RGB channel
+                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -147,10 +155,11 @@ if __name__ == "__main__":
 
         for i in xrange(64):
             for j in xrange(64):
-                sample = Variable(sample, volatile=True)
-                output = model(sample)
-                probs = F.softmax(output[:, :, :, i, j]).data
-                sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
+                for k in xrange(3):
+                    sample = Variable(sample, volatile=True)
+                    output = model(sample)
+                    probs = F.softmax(output[:, :, k, i, j]).data
+                    sample[:, k, i, j] = torch.multinomial(probs, 1).float() / 255.
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 

@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             output = model(data)
+            import pdb; pdb.set_trace()
             loss = F.cross_entropy(output, target)
             loss_meter.update(loss.data[0], len(data))
             
