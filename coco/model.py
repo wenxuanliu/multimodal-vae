@@ -348,3 +348,55 @@ def swish(x):
 class Swish(nn.Module):
     def forward(self, x):
         return x * F.sigmoid(x)
+
+
+class PixelCNN(nn.Module):
+    def __init__(self):
+        super(PixelCNN, self).__init__()
+        self.net = nn.Sequential(
+            MaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
+        )
+
+    def forward(self, x):
+        x = self.net(x)
+        x = x.view(-1, 256, 3, 64, 64)  # give it RGB channels
+        return x
+
+
+class MaskedConv2d(nn.Conv2d):
+    def __init__(self, mask_type, *args, **kwargs):
+        super(MaskedConv2d, self).__init__(*args, **kwargs)
+        assert mask_type in {'A', 'B'}
+        self.register_buffer('mask', self.weight.data.clone())
+        _, _, kH, kW = self.weight.size()
+        self.mask.fill_(1)
+        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
+        self.mask[:, :, kH // 2 + 1:] = 0
+
+    def forward(self, x):
+        self.weight.data *= self.mask
+        return super(MaskedConv2d, self).forward(x)

@@ -244,7 +244,8 @@ class PixelCNN(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        x = self.net(x)
+        return x
 
 
 class MaskedConv2d(nn.Conv2d):

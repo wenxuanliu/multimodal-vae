@@ -3,9 +3,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
-import shutil
 import sys
-import numpy as np
+import shutil
 
 import torch
 import torch.nn as nn
@@ -15,8 +14,8 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-from model import ImageVAE
-from train import loss_function, AverageMeter
+from model import PixelCNN
+from train import AverageMeter
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -27,34 +26,31 @@ def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
 
 
 def load_checkpoint(file_path, use_cuda=False):
-    """Return EmbedNet instance"""
     if use_cuda:
         checkpoint = torch.load(file_path)
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-
-    vae = ImageVAE(n_latents=checkpoint['n_latents'])
-    vae.load_state_dict(checkpoint['state_dict'])
+    model = PixelCNN()
+    model.load_state_dict(checkpoint['state_dict'])
     
-    return vae
+    if use_cuda:
+        model.cuda()
+
+    return model
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_latents', type=int, default=20,
-                        help='size of the latent embedding')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                        help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=1e-4, metavar='LR',
-                        help='learning rate (default: 1e-4)')
+    parser.add_argument('--epochs', type=int, default=20, metavar='N',
+                        help='number of epochs to train (default: 20)')
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
+                        help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status (default: 10)')
-    parser.add_argument('--anneal_kl', action='store_true', default=False, 
-                        help='if True, use a fixed interval of doubling the KL term')
+                        help='how many batches to wait before logging training status')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -63,22 +59,23 @@ if __name__ == "__main__":
     if not os.path.isdir('./trained_models'):
         os.makedirs('./trained_models')
 
-    if not os.path.isdir('./trained_models/image_only'):
-        os.makedirs('./trained_models/image_only')
+    if not os.path.isdir('./trained_models/pixel_cnn'):
+        os.makedirs('./trained_models/pixel_cnn')
 
     if not os.path.isdir('./results'):
         os.makedirs('./results')
 
-    if not os.path.isdir('./results/image_only'):
-        os.makedirs('./results/image_only')
+    if not os.path.isdir('./results/pixel_cnn'):
+        os.makedirs('./results/pixel_cnn')
 
+    # create transformers for preprocessing images
     transform_train = transforms.Compose([transforms.Scale(64),
                                           transforms.CenterCrop(64),
                                           transforms.ToTensor()])
     transform_test = transforms.Compose([transforms.Scale(64),
                                          transforms.CenterCrop(64),
                                          transforms.ToTensor()])
- 
+    # create loaders for COCO
     train_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
@@ -90,81 +87,87 @@ if __name__ == "__main__":
                               transform=transform_test),
         batch_size=args.batch_size, shuffle=True)
 
-    vae = ImageVAE(n_latents=args.n_latents)
+    # load multimodal VAE
+    model = PixelCNN()
     if args.cuda:
-        vae.cuda()
+        model.cuda()
 
-    optimizer = optim.Adam(vae.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 
     def train(epoch):
-        print('Using KL Lambda: {}'.format(kl_lambda))
-        vae.train()
+        model.train()
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(train_loader):
-            data = Variable(data)
             if args.cuda:
                 data = data.cuda()
+            data = Variable(data)
+            target = Variable((data.data * 255).long())
+
             optimizer.zero_grad()
-            recon_batch, mu, logvar = vae(data)
-            # watch out for logvar -- could explode if learning rate is too high.  
-            loss = loss_function(mu, logvar, recon_image=recon_batch, image=data, 
-                                 kl_lambda=kl_lambda, lambda_xy=1.)
-            loss_meter.update(loss.data[0], len(data))            
+            output = model(data)
+            loss = F.cross_entropy(output, target)
+            loss_meter.update(loss.data[0], len(data))
+            
             loss.backward()
             optimizer.step()
+
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss_meter.avg))
 
-        print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, loss_meter.avg))
+        print('====> Epoch: {}\tLoss: {:.4f}'.format(epoch, loss_meter.avg))
 
 
     def test():
-        vae.eval()
-        test_loss = 0
-        for i, (data, _) in enumerate(test_loader):
+        model.eval()
+        loss_meter = AverageMeter()
+
+        for batch_idx, (data, _) in enumerate(test_loader):
             if args.cuda:
                 data = data.cuda()
-            data = Variable(data, volatile=True)
-            recon_batch, mu, logvar = vae(data)
-            test_loss += loss_function(mu, logvar, recon_image=recon_batch, image=data, 
-                                       kl_lambda=kl_lambda, lambda_xy=1.).data[0]
+            data = Variable(data)
+            target = Variable((data.data * 255).long())
+                
+            output = model(data)
+            loss = F.cross_entropy(output, target)
+            loss_meter.update(loss.data[0], len(data))
+        
+        print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
+        return loss_meter.avg
 
-        test_loss /= len(test_loader.dataset)
-        print('====> Test set loss: {:.4f}'.format(test_loss))
-        return test_loss
+
+    def generate(epoch):
+        sample = torch.zeros(64, 3, 64, 64)
+        if args.cuda:
+            sample = sample.cuda()
+        model.eval() 
+
+        for i in xrange(64):
+            for j in xrange(64):
+                sample = Variable(sample, volatile=True)
+                output = model(sample)
+                probs = F.softmax(output[:, :, :, i, j]).data
+                sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
+
+        save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 
 
-    kl_lambda = 5e-4
-    schedule = iter([1e-5, 1e-4, 1e-3])  # , 1e-2, 1e-1, 1.0])
     best_loss = sys.maxint
-    for epoch in range(1, args.epochs + 1):
-        if (epoch - 1) % 5 == 0 and args.anneal_kl:
-            try:
-                kl_lambda = next(schedule)
-            except:
-                pass
 
+    for epoch in xrange(args.epochs):
         train(epoch)
         loss = test()
-
         is_best = loss < best_loss
         best_loss = min(loss, best_loss)
 
         save_checkpoint({
             'state_dict': vae.state_dict(),
             'best_loss': best_loss,
-            'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, folder='./trained_models/image_only')
+        }, is_best, folder='./trained_models/pixel_cnn')     
 
-        sample = Variable(torch.randn(64, args.n_latents))
-        if args.cuda:
-           sample = sample.cuda()
-
-        sample = vae.decode(sample).cpu()
-        save_image(sample.data.view(64, 3, 64, 64),
-                   './results/image_only/sample_image_epoch%d.png' % epoch)
+        if is_best:
+            generate(epoch)

@@ -25,7 +25,7 @@ def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
                         os.path.join(folder, 'model_best.pth.tar'))
 
 
-def load_checkpoint(file_path, n_latents=20, use_cuda=False):
+def load_checkpoint(file_path, use_cuda=False):
     if use_cuda:
         checkpoint = torch.load(file_path)
     else:
