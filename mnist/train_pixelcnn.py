@@ -84,7 +84,7 @@ if __name__ == "__main__":
         model.cuda()
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    sample = torch.Tensor(144, 1, 28, 28)
+    sample = torch.Tensor(64, 1, 28, 28)
     if args.cuda:
         sample = sample.cuda()
 
@@ -144,8 +144,7 @@ if __name__ == "__main__":
                 probs = F.softmax(output[:, :, i, j]).data
                 sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
 
-        save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch), 
-                   nrow=12, padding=0)
+        save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 
 
     best_loss = sys.maxint
