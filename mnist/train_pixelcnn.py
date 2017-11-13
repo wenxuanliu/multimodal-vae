@@ -84,9 +84,6 @@ if __name__ == "__main__":
         model.cuda()
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    sample = torch.Tensor(64, 1, 28, 28)
-    if args.cuda:
-        sample = sample.cuda()
 
 
     def train(epoch):
@@ -134,13 +131,14 @@ if __name__ == "__main__":
 
 
     def generate(epoch):
-        sample.fill_(0)
+        sample = torch.zeros(64, 1, 28, 28)
+        if args.cuda:
+            sample = sample.cuda()
         model.eval() 
 
         for i in xrange(28):
             for j in xrange(28):
-                sample = Variable(sample, volatile=True)
-                output = model(sample)
+                output = model(Variable(sample, volatile=True))
                 probs = F.softmax(output[:, :, i, j]).data
                 sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
 
@@ -156,7 +154,7 @@ if __name__ == "__main__":
         best_loss = min(loss, best_loss)
 
         save_checkpoint({
-            'state_dict': vae.state_dict(),
+            'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/pixel_cnn')     
