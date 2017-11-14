@@ -155,9 +155,10 @@ if __name__ == "__main__":
 
         for i in xrange(64):
             for j in xrange(64):
+                sample = Variable(sample, volatile=True)
+                output = model(sample)
+                
                 for k in xrange(3):
-                    sample = Variable(sample, volatile=True)
-                    output = model(sample)
                     probs = F.softmax(output[:, :, k, i, j]).data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / 255.
 
