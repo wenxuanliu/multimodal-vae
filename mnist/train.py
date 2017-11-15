@@ -58,9 +58,17 @@ def load_checkpoint(file_path, n_latents=20, use_cuda=False):
     return vae
 
 
-def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
-    text_BCE = F.nll_loss(recon_text, text)
+def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, text=None,
+                  lambda_xy=1., lambda_yx=1.):
+    batch_size = mu.size(0)
+    image_BCE, text_BCE = 0, 0
+
+    if recon_image is not None and image is not None:
+        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784))
+
+    if recon_text is not None and text is not None:
+        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
@@ -68,28 +76,6 @@ def joint_loss_function(recon_image, image, recon_text, text, mu, logvar, batch_
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     KLD /= batch_size * 784  # for each pixel
     return image_BCE + text_BCE + KLD
-
-
-def image_loss_function(recon_image, image, mu, logvar, batch_size=128):
-    image_BCE = F.binary_cross_entropy(recon_image, image.view(-1, 784))
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784  # for each pixel
-    return image_BCE + KLD
-
-
-def text_loss_function(recon_text, text, mu, logvar, batch_size=128):
-    text_BCE = F.nll_loss(recon_text, text)
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 50  # for each embedding unit
-    return text_BCE + KLD
 
 
 if __name__ == "__main__":
@@ -144,17 +130,19 @@ if __name__ == "__main__":
             # for each batch, use 3 types of examples (joint, image-only, and text-only)
             # this way, we can hope to reconstruct both modalities from one
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
+
+            loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                   recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
+            loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.5)
+            loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                   recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
             
-            loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
+            
             joint_loss_meter.update(loss_1.data[0], len(image))
             image_loss_meter.update(loss_2.data[0], len(image))
             text_loss_meter.update(loss_3.data[0], len(text))
@@ -183,15 +171,15 @@ if __name__ == "__main__":
             image = image.view(-1, 784)  # flatten image
                 
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
-            
-            loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
+
+            loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                   recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
+            loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.5)
+            loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                   recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]

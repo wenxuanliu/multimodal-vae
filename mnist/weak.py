@@ -24,7 +24,7 @@ from torchvision import transforms, datasets
 from model import MultimodalVAE
 from train import AverageMeter
 from train import save_checkpoint, load_checkpoint
-from train import joint_loss_function, image_loss_function, text_loss_function
+from train import loss_function
 
 
 def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, lr=1e-3, 
@@ -77,27 +77,34 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             image = image.view(-1, 784)  # flatten image
             optimizer.zero_grad()
             
-            # for each batch, use 3 types of examples (joint, image-only, and text-only)
-            # this way, we can hope to reconstruct both modalities from one
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            # depending on this flip, we either show it a full paired example or 
+            # we show it single modalities (in which we cannot compute the full loss)
+            flip = np.random.random()
+            if flip < weak_perc:  # here we show a paired example
+                recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
+                loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                       recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
+                recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+                loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                       recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=1.)
+                recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
+                loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                       recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
 
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=batch_size)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=batch_size)  
-            loss = loss_2 + loss_3          
+                loss = loss_1 + loss_2 + loss_3
+                joint_loss_meter.update(loss_1.data[0], len(image))
+            
+            else:  # here we show individual modalities
+                recon_image_2, _, mu_2, logvar_2 = vae(image=image)
+                loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                       lambda_xy=1., lambda_yx=0.)
+                _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+                loss_3 = loss_function(mu_3, logvar_3, recon_text=recon_text_3, text=text, 
+                                       lambda_yx=1., lambda_yx=0.)
+                loss = loss_2 + loss_3
+
             image_loss_meter.update(loss_2.data[0], len(image))
             text_loss_meter.update(loss_3.data[0], len(text))
-            
-            # if we flip(weak_perc), then we show a paired relation example.
-            flip = np.random.random()
-            if flip < weak_perc:
-                recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-                loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                             batch_size=args.batch_size)
-                loss = loss + loss_1
-                joint_loss_meter.update(loss_1.data[0], len(image))
 
             loss.backward()
             optimizer.step()
@@ -124,16 +131,18 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             image, text = Variable(image), Variable(text)
             image = image.view(-1, 784)  # flatten image
                 
+            # in test i always care about the joint loss -- so we don't anneal
+            # back joint examples as we do in train
             recon_image_1, recon_text_1, mu_1, logvar_1 = vae(image, text)
-            recon_image_2, _, mu_2, logvar_2 = vae(image=image)
-            _, recon_text_3, mu_3, logvar_3 = vae(text=text)
+            recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
+            recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
 
-            loss_1 = joint_loss_function(recon_image_1, image, recon_text_1, text, mu_1, logvar_1,
-                                         batch_size=args.batch_size)
-            loss_2 = image_loss_function(recon_image_2, image, mu_2, logvar_2,
-                                         batch_size=args.batch_size)
-            loss_3 = text_loss_function(recon_text_3, text, mu_3, logvar_3,
-                                        batch_size=args.batch_size)
+            loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
+                                   recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
+            loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=1.)
+            loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
+                                   recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
             
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
