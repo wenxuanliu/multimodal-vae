@@ -174,7 +174,7 @@ if __name__ == "__main__":
         best_loss = min(loss, best_loss)
 
         save_checkpoint({
-            'state_dict': vae.state_dict(),
+            'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/pixel_cnn')     
