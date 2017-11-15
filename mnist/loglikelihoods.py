@@ -33,7 +33,7 @@ def compute_nll(model, loader, image_only=False, text_only=False, use_cuda=False
             recon_image, recon_text, _, _ = model(text=text)
 
         _image_nll = -torch.log(F.binary_cross_entropy(recon_image, image))
-        _text_nll = F.nll_loss(recon_text, text)
+        _text_nll = -torch.log(F.nll_loss(recon_text, text))
 
         image_nll += _image_nll
         text_nll += _text_nll
@@ -71,5 +71,5 @@ if __name__ == "__main__":
 
     image_nll = image_nll.cpu().data[0]
     text_nll = text_nll.cpu().data[0]
-    print('Image NLL: {:.4f}\tText NLL: {:.4f}'.format(image_nll, text_nll))
+    print('Test Image NLL: {:.4f}\tTest Text NLL: {:.4f}'.format(image_nll, text_nll))
     
