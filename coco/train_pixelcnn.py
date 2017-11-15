@@ -155,8 +155,7 @@ if __name__ == "__main__":
 
         for i in xrange(64):
             for j in xrange(64):
-                sample = Variable(sample, volatile=True)
-                output = model(sample)
+                output = model(Variable(sample, volatile=True))
                 
                 for k in xrange(3):
                     probs = F.softmax(output[:, :, k, i, j]).data

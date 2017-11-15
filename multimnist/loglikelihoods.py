@@ -52,7 +52,7 @@ if __name__ == "__main__":
     # modality options
     parser.add_argument('--image_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from image only')
-    parser.add_argument('--text_only', action='store_true', default=False,åå
+    parser.add_argument('--text_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from text only')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -72,8 +72,10 @@ if __name__ == "__main__":
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
 
-    image_nll, text_nll = compute_nll(model, loader, use_cuda=args.cuda, 
+    image_nll, text_nll = compute_nll(vae, loader, use_cuda=args.cuda, 
                                       image_only=args.image_only, text_only=args.text_only)
 
+    image_nll = image_nll.cpu().data[0]
+    text_nll = text_nll.cpu().data[0]
     print('Image NLL: {:.4f}\tText NLL: {:.4f}'.format(image_nll, text_nll))
     
