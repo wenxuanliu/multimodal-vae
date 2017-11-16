@@ -24,7 +24,7 @@ def compute_nll(model, loader, image_only=False, text_only=False,
     model.eval()
     test_image_nll, test_text_nll = 0, 0
 
-    for image, text in loader:
+    for batch_idx, (image, text) in enumerate(loader):
         if use_cuda:
             image, text = image.cuda(), text.cuda()
         image = Variable(image, volatile=True)
@@ -59,6 +59,10 @@ def compute_nll(model, loader, image_only=False, text_only=False,
 
         test_image_nll += (image_nll / n_samples)
         test_text_nll += (text_nll / n_samples)
+
+        print('Evaluating: [{}/{} ({:.0f}%)]'.format(
+              epoch, batch_idx * len(image), len(loader.dataset),
+              100. * batch_idx / len(loader)))
 
     return -test_image_nll, -test_text_nll
 
