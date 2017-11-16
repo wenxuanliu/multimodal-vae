@@ -51,15 +51,15 @@ def compute_nll(model, loader, image_only=False, text_only=False,
             recon_image = model.decode_image(sample[:, i])
             recon_text = model.decode_text(sample[:, i])
             image_nll += F.binary_cross_entropy(recon_image, image, size_average=False)
-            text_nll += F.nll_loss(recon_text, text)
+            text_nll += F.nll_loss(recon_text, text, size_average=False)
 
         test_image_nll += (image_nll / n_samples)
         test_text_nll += (text_nll / n_samples)
 
         print('Evaluating: [{}/{} ({:.0f}%)]'.format(batch_idx * len(image), len(loader.dataset),
-                                                     100. * batch_idx / len(loader)))
+                                                     100. * batch_idx / len(loader)))   
 
-    return -test_image_nll, -test_text_nll
+    return test_image_nll, test_text_nll
 
 
 if __name__ == "__main__":

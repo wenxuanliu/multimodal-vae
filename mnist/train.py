@@ -64,18 +64,19 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     image_BCE, text_BCE = 0, 0
 
     if recon_image is not None and image is not None:
-        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784))
+        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784), 
+                                                       size_average=False)
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), 
+                                          text.view(-1), size_average=False)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784  # for each pixel
-    return image_BCE + text_BCE + KLD
+    return (image_BCE + text_BCE + KLD / 784) / batch_size
 
 
 if __name__ == "__main__":
