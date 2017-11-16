@@ -4,51 +4,76 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import numpy as np
+
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from torchvision import datasets, transforms
+from torchvision import transforms
 
+import datasets
 from train import load_checkpoint
+from utils import max_length, FILL
+from utils import charlist_tensor
 
 
-def compute_nll(model, loader, image_only=False, text_only=False, use_cuda=False):
+def compute_nll(model, loader, image_only=False, text_only=False, 
+                n_samples=1, use_cuda=False):
     assert not (image_only and text_only)
 
     model.eval()
-    image_nll, text_nll = 0, 0
+    test_image_nll, test_text_nll = 0, 0
 
     for image, text in loader:
         if use_cuda:
             image, text = image.cuda(), text.cuda()
         image = Variable(image, volatile=True)
         text = Variable(text, volatile=True)
-        image = image.view(-1, 784)
 
         if not image_only and not text_only:
-            recon_image, recon_text, _, _ = model(image, text)
+            _, _, mu, logvar = model(image, text)
         elif image_only:
-            recon_image, recon_text, _, _ = model(image=image)
+            _, _, mu, logvar = model(image=image)
         elif text_only:
-            recon_image, recon_text, _, _ = model(text=text)
+            _, _, mu, logvar = model(text=text)
 
-        _image_nll = -torch.log(F.binary_cross_entropy(recon_image, image))
-        _text_nll = -torch.log(F.nll_loss(recon_text, text))
+        batch_size, n_latents = mu.size(0), mu.size(1)
+        sample = Variable(torch.randn(n_samples, n_latents))
 
-        image_nll += _image_nll
-        text_nll += _text_nll
+        if use_cuda:
+            sample = sample.cuda()
 
-    return image_nll, text_nll
+        std = logvar.mul(0.5).exp_()
+        mu = mu.unsqueeze(1).repeat(1, n_samples, 1)
+        std = std.unsqueeze(1).repeat(1, n_samples, 1)
+
+        sample = sample.unsqueeze(0).repeat(batch_size, 1, 1)
+        sample = sample.mul(std).add_(mu)
+
+        image_nll, text_nll = 0, 0
+        for i in xrange(n_samples):
+            recon_image = model.decode_image(sample[:, i])
+            recon_text = model.decode_text(sample[:, i])
+            image_nll += torch.log(F.binary_cross_entropy(recon_image, image))
+            text_nll += torch.log(F.nll_loss(recon_text, text))
+
+        test_image_nll += (image_nll / n_samples)
+        test_text_nll += (text_nll / n_samples)
+
+    return -test_image_nll, -test_text_nll
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str, help='path to trained model file')
+    # modality options
     parser.add_argument('--image_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from image only')
     parser.add_argument('--text_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from text only')
+    parser.add_argument('--n_samples', type=int, default=1000, 
+                        help='number of samples to use to estimate the ELBO')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -57,16 +82,17 @@ if __name__ == "__main__":
     assert not (args.image_only and args.text_only), \
         "--image_only and --text_only cannot both be supplied."
 
-    # loader for MNIST
+    # loader for MultiMNIST
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=False, download=True,
-                       transform=transforms.ToTensor()),
-        batch_size=128, shuffle=True)
+        datasets.MultiMNIST('./data', train=False, download=True,
+                            transform=transforms.ToTensor(),
+                            target_transform=charlist_tensor),
+        batch_size=64, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
 
-    image_nll, text_nll = compute_nll(vae, loader, use_cuda=args.cuda, 
+    image_nll, text_nll = compute_nll(vae, loader, use_cuda=args.cuda, n_samples=args.n_samples,
                                       image_only=args.image_only, text_only=args.text_only)
 
     image_nll = image_nll.cpu().data[0]
