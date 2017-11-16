@@ -21,7 +21,7 @@ if __name__ == "__main__":
     import matplotlib.cm as cm
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_latents', type=int, default=20)
+    parser.add_argument('model_path', type=str, help='path to trained model file')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -34,8 +34,7 @@ if __name__ == "__main__":
                        transform=transforms.ToTensor()),
         batch_size=128, shuffle=True)
 
-    vae = load_checkpoint('./trained_models/model_best.pth.tar', 
-                          n_latents=args.n_latents, use_cuda=args.cuda)
+    vae = load_checkpoint(args.model_path, n_latents=20, use_cuda=args.cuda)
     vae.eval()
     if args.cuda:
         vae.cuda()
