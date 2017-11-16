@@ -59,9 +59,11 @@ if __name__ == "__main__":
     with open('./results/dump.pkl', 'wb') as fp:
         pickle.dump({'latents': latents, 'labels': labels}, fp)
 
-    if latents.shape[1] > 2:
-        pca = PCA(n_components=2)
-        latents = pca.fit_transform(latents)
+    # perform staggered dimensionality reduction
+    pca_50 = PCA(n_components=50)
+    latents = pca_50.fit_transform(latents)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+    latents = tsne.fit_transform(latents)    
 
     # now we have latents guaranteed to be 2 dimensions
     # let's plot the manifold
