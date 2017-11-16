@@ -149,10 +149,10 @@ def train_pipeline(out_dir, weak_perc, n_latents=20, batch_size=128, epochs=20, 
             test_text_loss += loss_3.data[0]
 
         test_loss = test_joint_loss + test_image_loss + test_text_loss
-        test_joint_loss /= len(test_loader.dataset)
-        test_image_loss /= len(test_loader.dataset)
-        test_text_loss /= len(test_loader.dataset)
-        test_loss /= len(test_loader.dataset)
+        test_joint_loss /= len(test_loader)
+        test_image_loss /= len(test_loader)
+        test_text_loss /= len(test_loader)
+        test_loss /= len(test_loader)
 
         print('====> [Weak {:.0f}%] Test joint loss: {:.4f}\timage loss: {:.4f}\ttext loss:{:.4f}'.format(
             100. * weak_perc, test_joint_loss, test_image_loss, test_text_loss))
