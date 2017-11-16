@@ -45,7 +45,6 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('n_samples', type=int, help='Number of images and texts to sample.')
-    parser.add_argument('--n_latents', type=int, default=20, help='Dimension of latent embedding.')
     parser.add_argument('--condition_on_image', type=int, default=None,
                         help='If True, generate text conditioned on an image.')
     parser.add_argument('--condition_on_text', type=int, default=None, 
@@ -56,8 +55,7 @@ if __name__ == "__main__":
     args.cuda = args.cuda and torch.cuda.is_available()
 
     # load trained model
-    vae = load_checkpoint('./trained_models/model_best.pth.tar', 
-                          n_latents=args.n_latents, use_cuda=args.cuda)
+    vae = load_checkpoint('./trained_models/model_best.pth.tar', use_cuda=args.cuda)
     vae.eval()
     if args.cuda:
         vae.cuda()
@@ -98,7 +96,8 @@ if __name__ == "__main__":
         std = logvar.mul(0.5).exp_()
 
     # sample from uniform gaussian
-    sample = Variable(torch.randn(args.n_samples, args.n_latents))
+    n_latents = vae.encoder.n_latents
+    sample = Variable(torch.randn(args.n_samples, n_latents))
     if args.cuda:
         sample = sample.cuda()
     

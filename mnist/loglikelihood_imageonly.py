@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 
-from train import load_checkpoint
+from train_imageonly import load_checkpoint
 
 
 def compute_nll(model, loader, n_samples=1, use_cuda=False):
@@ -40,7 +40,7 @@ def compute_nll(model, loader, n_samples=1, use_cuda=False):
 
         nll = 0
         for i in xrange(n_samples):
-            recon_image = model.decode_image(sample[:, i])
+            recon_image = model.decode(sample[:, i])
             nll += F.binary_cross_entropy(recon_image, image, size_average=False)
 
         test_nll += (nll / n_samples)
@@ -70,6 +70,8 @@ if __name__ == "__main__":
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
+    if args.cuda:
+        vae.cuda()
 
     nll = compute_nll(vae, loader, use_cuda=args.cuda, n_samples=args.n_samples)
-    print('\nTest NLL: {:.4f}'.format(nll))
+    print('\nTest NLL: {:.4f}'.format(nll.data[0]))
