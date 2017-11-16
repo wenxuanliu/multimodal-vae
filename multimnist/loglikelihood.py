@@ -60,9 +60,8 @@ def compute_nll(model, loader, image_only=False, text_only=False,
         test_image_nll += (image_nll / n_samples)
         test_text_nll += (text_nll / n_samples)
 
-        print('Evaluating: [{}/{} ({:.0f}%)]'.format(
-              epoch, batch_idx * len(image), len(loader.dataset),
-              100. * batch_idx / len(loader)))
+        print('Evaluating: [{}/{} ({:.0f}%)]'.format(batch_idx * len(image), len(loader.dataset),
+                                                     100. * batch_idx / len(loader)))
 
     return -test_image_nll, -test_text_nll
 
@@ -76,7 +75,7 @@ if __name__ == "__main__":
                         help='compute NLL of test data using reconstructions from image only')
     parser.add_argument('--text_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from text only')
-    parser.add_argument('--n_samples', type=int, default=1000, 
+    parser.add_argument('--n_samples', type=int, default=100, 
                         help='number of samples to use to estimate the ELBO')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
@@ -101,5 +100,5 @@ if __name__ == "__main__":
 
     image_nll = image_nll.cpu().data[0]
     text_nll = text_nll.cpu().data[0]
-    print('Test Image NLL: {:.4f}\tTest Text NLL: {:.4f}'.format(image_nll, text_nll))
+    print('\nTest Image NLL: {:.4f}\tTest Text NLL: {:.4f}'.format(image_nll, text_nll))
     
