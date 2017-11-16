@@ -1,4 +1,4 @@
-"""Compute log-likelihoods for entire dataset"""
+"""Compute log-likelihoods for test dataset"""
 
 from __future__ import division
 from __future__ import print_function
