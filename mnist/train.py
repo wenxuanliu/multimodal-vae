@@ -68,8 +68,7 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
                                                        size_average=False)
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), 
-                                          text.view(-1), size_average=False)
+        text_BCE = lambda_yx * F.nll_loss(recon_text, text, size_average=False)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -106,6 +105,7 @@ if __name__ == "__main__":
         datasets.MNIST('./data', train=False, download=True,
                        transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
+
 
     # load multimodal VAE
     vae = MultimodalVAE(n_latents=args.n_latents)
@@ -187,10 +187,10 @@ if __name__ == "__main__":
             test_text_loss += loss_3.data[0]
 
         test_loss = test_joint_loss + test_image_loss + test_text_loss
-        test_joint_loss /= len(test_loader.dataset)
-        test_image_loss /= len(test_loader.dataset)
-        test_text_loss /= len(test_loader.dataset)
-        test_loss /= len(test_loader.dataset)
+        test_joint_loss /= len(test_loader)
+        test_image_loss /= len(test_loader)
+        test_text_loss /= len(test_loader)
+        test_loss /= len(test_loader)
         
         print('====> Test Epoch\tJoint loss: {:.4f}\tImage loss: {:.4f}\tText loss:{:.4f}'.format(
             test_joint_loss, test_image_loss, test_text_loss))
