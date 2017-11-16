@@ -49,8 +49,8 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-
-    vae = VAE()
+    n_latents = checkpoint['n_latents']
+    vae = VAE(n_latents=n_latents)
     vae.load_state_dict(checkpoint['state_dict'])
     
     return vae
@@ -152,6 +152,7 @@ if __name__ == "__main__":
         save_checkpoint({
             'state_dict': vae.state_dict(),
             'best_loss': best_loss,
+            'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/image_only')
 
