@@ -50,8 +50,8 @@ def compute_nll(model, loader, image_only=False, text_only=False,
         for i in xrange(n_samples):
             recon_image = model.decode_image(sample[:, i])
             recon_text = model.decode_text(sample[:, i])
-            image_nll += torch.log(F.binary_cross_entropy(recon_image, image))
-            text_nll += torch.log(F.nll_loss(recon_text, text))
+            image_nll += F.binary_cross_entropy(recon_image, image, size_average=False)
+            text_nll += F.nll_loss(recon_text, text)
 
         test_image_nll += (image_nll / n_samples)
         test_text_nll += (text_nll / n_samples)

@@ -57,7 +57,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def loss_function(recon_x, x, mu, logvar):
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784))
+    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), size_average=False)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -66,9 +66,7 @@ def loss_function(recon_x, x, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     
     # Normalise by same number of elements as in reconstruction
-    KLD /= args.batch_size * 784
-
-    return BCE + KLD
+    return torch.mean(BCE + KLD / 784, 1)
 
 
 if __name__ == "__main__":
