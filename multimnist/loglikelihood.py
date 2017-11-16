@@ -63,7 +63,10 @@ def compute_nll(model, loader, image_only=False, text_only=False,
         print('Evaluating: [{}/{} ({:.0f}%)]'.format(batch_idx * len(image), len(loader.dataset),
                                                      100. * batch_idx / len(loader)))
 
-    return -test_image_nll, -test_text_nll
+    test_image_nll /= len(loader.dataset)
+    test_text_nll /= len(loader.dataset)
+
+    return test_image_nll, test_text_nll
 
 
 if __name__ == "__main__":

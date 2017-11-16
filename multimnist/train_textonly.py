@@ -126,7 +126,7 @@ if __name__ == "__main__":
             test_loss += loss_function(mu, logvar, recon_text=recon_batch, text=data, 
                                        kl_lambda=kl_lambda, lambda_yx=1.).data[0]
 
-        test_loss /= len(test_loader.dataset)
+        test_loss /= len(test_loader)
         print('====> Test set loss: {:.4f}'.format(test_loss))
         return test_loss
 

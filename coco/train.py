@@ -70,10 +70,11 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     
     if recon_image is not None and image is not None:
         image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 64 * 64), 
-                                                       image.view(-1, 1 * 64 * 64))
+                                                       image.view(-1, 1 * 64 * 64), size_average=False)
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1),
+                                          size_average=False)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014

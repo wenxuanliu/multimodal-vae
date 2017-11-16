@@ -148,21 +148,21 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
                                    recon_text=recon_text_1, text=text, kl_lambda=kl_lambda,
                                    lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                       recon_text=recon_text_2, text=text, kl_lambda=kl_lambda,
-                                       lambda_xy=1., lambda_yx=1.)
+                                   recon_text=recon_text_2, text=text, kl_lambda=kl_lambda,
+                                   lambda_xy=1., lambda_yx=1.)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
-                                       recon_text=recon_text_3, text=text, kl_lambda=kl_lambda,
-                                       lambda_xy=0., lambda_yx=1.)
+                                   recon_text=recon_text_3, text=text, kl_lambda=kl_lambda,
+                                   lambda_xy=0., lambda_yx=1.)
             
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
             test_text_loss += loss_3.data[0]
 
         test_loss = test_joint_loss + test_image_loss + test_text_loss
-        test_joint_loss /= len(test_loader.dataset)
-        test_image_loss /= len(test_loader.dataset)
-        test_text_loss /= len(test_loader.dataset)
-        test_loss /= len(test_loader.dataset)
+        test_joint_loss /= len(test_loader)
+        test_image_loss /= len(test_loader)
+        test_text_loss /= len(test_loader)
+        test_loss /= len(test_loader)
 
         print('====> [Weak (Image) {:.0f}% | Weak (Text) {:.0f}%] Test joint loss: {:.4f}\timage loss: {:.4f}\ttext loss:{:.4f}'.format(
             100. * weak_perc_m1, 100. * weak_perc_m2, test_joint_loss, test_image_loss, test_text_loss))

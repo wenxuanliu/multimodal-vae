@@ -73,18 +73,18 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     
     if recon_image is not None and image is not None:
         image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 50 * 50), 
-                                                       image.view(-1, 1 * 50 * 50))
+                                                       image.view(-1, 1 * 50 * 50), size_average=False)
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1),
+                                          size_average=False)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD = KLD / batch_size * kl_lambda
-    return image_BCE + text_BCE + KLD
+    return (image_BCE + text_BCE + KLD * kl_lambda) / batch_size
 
 
 if __name__ == "__main__":
@@ -213,10 +213,10 @@ if __name__ == "__main__":
             test_text_loss += loss_3.data[0]
 
         test_loss = test_joint_loss + test_image_loss + test_text_loss
-        test_joint_loss /= len(test_loader.dataset)
-        test_image_loss /= len(test_loader.dataset)
-        test_text_loss /= len(test_loader.dataset)
-        test_loss /= len(test_loader.dataset)
+        test_joint_loss /= len(test_loader)
+        test_image_loss /= len(test_loader)
+        test_text_loss /= len(test_loader)
+        test_loss /= len(test_loader)
         
         print('====> Test Epoch\tJoint loss: {:.4f}\tImage loss: {:.4f}\tText loss:{:.4f}'.format(
             test_joint_loss, test_image_loss, test_text_loss))
