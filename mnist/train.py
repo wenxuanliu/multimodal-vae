@@ -60,7 +60,6 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, text=None,
                   lambda_xy=1., lambda_yx=1.):
-    batch_size = mu.size(0)
     image_BCE, text_BCE = 0, 0
 
     if recon_image is not None and image is not None:
@@ -69,13 +68,12 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     if recon_text is not None and text is not None:
         text_BCE = lambda_yx * F.nll_loss(recon_text, text)
 
-    import pdb; pdb.set_trace()
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784  # for each pixel
+    KLD /= args.batch_size * (784 / 3)  # for each pixel
     return image_BCE + text_BCE + KLD
 
 
@@ -138,9 +136,9 @@ if __name__ == "__main__":
             loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
                                    recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.)
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=1.)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
-                                   recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
+                                   recon_text=recon_text_3, text=text, lambda_xy=1., lambda_yx=1.)
             
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
