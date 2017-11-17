@@ -8,7 +8,7 @@
 \usepackage{amsfonts}
 \usepackage{nicefrac}
 \usepackage{microtype}
-\usepackage{nips_2017}
+\usepackage[final]{nips_2017}
 \usepackage{graphicx}
 \usepackage{subcaption}
 \usepackage{amsmath}
@@ -31,13 +31,13 @@
 \maketitle
 
 \begin{abstract}
-TODO
+Last thing TODO.
 \end{abstract}
 
 \section{Introduction}
 The problem of learning from multiple modalities is especially important since the majority of modern information is represented through multiple channels. For example, images in the web are often embedded around text. And while images can be described by pixels, we expect related modalities like text to also hold relevant features. People often interact with this multimodal information in a \textit{bi-directional} way. For example, one can imagine what a black cat looks like but also prescribe this description to a photo. Additionally, available multimodal information is often \textit{sparse}. There exist many large corpuses of images or text alone but few datasets exist (and are expensive to construct) that contain multiple modalities together. Ideally, we would like the generative models we build to extract a joint representation that captures high-level concepts across modalities in a way that is bi-directional and weakly-supervised. 
 
-In this work, we propose a multimodal variational autoencoder (MMVAE), an extension of the traditional VAE framework to handle multiple input types. The first extension is model the setting where we have both an image, $x$, and a natural text, $y$. We then assume a joint generative model of the form $p(x, y, z) = p(z)p(x | z)p(y | z)$ where $p(z)$ is the prior over the latent variable $z$, $p(x | z)$ is our image decoder, and $p(y | z)$ is our text decoder. We then further extend the VAE using a novel objective function, which we call the \textit{MMELBO}, for simultaneously training the model from paired data, $D_{p} = \{ (x_{n}, y_{n}) \}$, and unimodal data, $D_{x} = \{ x_{n} \}$, $D_{y} = \{ y_{n} \}$. Namely, using MMELBO allows for both evaluating unpaired data at test time and training with sparse paired examples. 
+In this work, we propose a multimodal variational autoencoder (MMVAE), an extension of the traditional VAE framework to handle multiple input types. The first extension is model the setting where we have both an image, $x$, and a natural text, $y$. We then assume a joint generative model of the form $p(x, y, z) = p(z)p(x | z)p(y | z)$ where $p(z)$ is the prior over the latent variable $z$, $p(x | z)$ is our image decoder, and $p(y | z)$ is our text decoder. We then further extend the VAE using a novel objective function, which we call the multimodal ELBO (\textit{MELBO}), for simultaneously training the model from paired data, $D_{p} = \{ (x_{n}, y_{n}) \}$, and unimodal data, $D_{x} = \{ x_{n} \}$, $D_{y} = \{ y_{n} \}$. Namely, using MELBO allows for both evaluating unpaired data at test time and training with sparse paired examples. 
 
 MMVAE jointly fits three encoders: $q(z | x, y)$, $q(z | x)$, and $q(z | y)$. Doing so, we can project images and natural text into the same latent space, and offer ways to translate between the two (bi-directional). For efficiency and simplicity, MMVAEs share parameters between the three encoders. The encoders interact via product of experts (POE) \cite{hinton2006training, vedantam2017generative}. 
 
@@ -45,7 +45,7 @@ We report experimental results on three datasets. The first dataset is MNIST, wh
 
 Finally, for each of the three datasets, we investigate how our model performs under weak-supervision by aggressively reducing the number of paired data points we provide to the model. We show that MMVAEs do not need a significant number of paired data points to learn a good joint representation across modalities, making this model feasible for real-world tasks i.e. caption generation or speech-to-text. We also briefly discuss reducing the number of data points of a single modality and its effect of learning.
 
-In summary, the contributions of this paper are as follows: first, we present MMVAEs, introducing the MMELBO objective. Second, we show that the product of experts techniques works with two unstructured modalities: images and raw text. Lastly, we should that multimodal VAEs are good candidates for weakly supervised learning.
+In summary, the contributions of this paper are as follows: first, we present MMVAEs, introducing the MELBO objective. Second, we show that the product of experts techniques works with two unstructured modalities: images and raw text. Lastly, we should that multimodal VAEs are good candidates for weakly supervised learning.
 
 \subsection{Related Work}
 In deep learning, multimodal learning is often done using separate branches in the neural net for each modality, and a common top hidden layer. For instance, \citet{ngiam2011multimodal} trained deep autoencoders on audio and video input and found that the bimodal representations were better than any single equivalent. More recently, VAEs \cite{kingma2013auto, kingma2014semi} have been used to train conditional generative models of the form $p(y | x)$ in high-dimensional bimodal settings. Here, $y$ is often a class label, a sentence, or another image depending on the task. For example, conditional VAEs \cite{sohn2015learning}, and conditional multimodal autoencoders (CMMA) \cite{pandey2017variational} maximize a conditional log-likelihood where often one modality is conditioned on another i.e. handwriting digits and labels, faces and attributes, etc. Notably, these CVAEs and CMMAs are not bi-directional. We are more interested in learning a shared latent space of $p(x, y)$ where we can condition interchangeably. 
@@ -68,45 +68,39 @@ As \citet{vedantam2017generative} note, forcing $q_{\phi(z|y)}$ to be close to $
     J(x, y, \theta_{x}, \theta_{y}, \phi, \phi_{x}, \phi_{y}) = \textup{elbo}_{1, \lambda, 1}(x, y, \theta_{x}, \theta_{y}, \phi) + \textup{elbo}_{1, 1}(x, \theta_{x}, \phi_{x}) + \textup{elbo}_{\gamma, 1}(y, \theta_{y}, \phi_{y})
 \end{equation}
 
-where $\lambda, \gamma$ are hyperparameters of the ELBO. See model section for notation. The authors report training this model in two stages: first, using only aligned data, train on first ELBO term alone. Then, freezing the decoders $p_{\theta_{x}}(x|z)$ and $p_{\theta_{y}}(y|z)$, train on the last two ELBO terms above. The TELBO is very similar to our proposed objective (MMELBO). We denote two main differences. First, in TELBO, when the input is a single modality, the objective decomposes to the traditional ELBO, where it penalizes differences between the reconstruction and original of that modality only. In MMELBO, all three ELBO terms include reconstruction costs for all modalities. For example, given an unpaired image $x$, MELBO encourages its latent representation to decode to both a sensible image and text. We later show that this change is important in produce sharper samples. Second, training MMELBO is done concurrently in a single stage. We show paired and unpaired examples together and share encoder and decoder parameters across the three ELBO terms. 
+where $\lambda, \gamma$ are hyperparameters of the ELBO. See model section for notation. The authors report training this model in two stages: first, using only aligned data, train on first ELBO term alone. Then, freezing the decoders $p_{\theta_{x}}(x|z)$ and $p_{\theta_{y}}(y|z)$, train on the last two ELBO terms above. The TELBO is very similar to our proposed objective (MELBO). We denote three main differences. First, in TELBO, when the input is a single modality, the objective decomposes to the traditional ELBO, where it penalizes differences between the reconstruction and original of that modality only. In MELBO, all three ELBO terms include reconstruction costs for all modalities. For example, given an unpaired image $x$, MELBO encourages its latent representation to decode to both a sensible image and text. We later show that this change is important in produce sharper samples. Second, training MELBO is done concurrently in a single stage. We show paired and unpaired examples together and share encoder and decoder parameters across the three ELBO terms. Thirdly, \citet{vedantam2017generative} only test on images and one-hotted attributes in their experiments. In this work, we will explore a more difficult second modality, unstructured text.  
 
 \section{Methods}
-This section first briefly goes over VAEs, and product of Gaussians (PoG), then details a new multimodal VAE (MMVAE).
+This section first briefly goes over standard VAEs, and product of Gaussians (PoG), then details a new multimodal VAE (MMVAE). See supplement for details of the MLP, CNN, and RNN architectures used as encoders and decoders.
 
 \subsection{Variational Autoencoders}
-Variational autoencoders (VAE) model a generative process as $z \sim \mathcal{N}(0, I)$ and $x \sim p_{\theta}(x | z)$ where $x$ is an observed variable, $z$ is a latent variable, and $\theta$ are the model parameters. VAE wish to maximize the marginal distribution $p(x) = \int p_{\theta}(x | z)p(z)dx$, which is intractable. Instead, we maximize the lower bound of the marginal distribution:
+A variational autoencoder (VAE) \cite{kingma2013auto} is a latent generative model of the form $p_{\theta}(x, z) = p_{\theta}(z)p_{\theta}(x|z)$ where $p_{\theta}(z)$ is usually a Gaussian prior, and $p_{\theta}(x|z)$ is the decoder, representing the likelihood. Training takes the form of fitting an encoder network, $q_{\phi}(z|x)$ to maximize the evidence lower bound (ELBO), defined below:
 
-\begin{equation}
-    \textup{log } p(x) \geq -D_{KL}(q_{\phi}(z | x) || p(z)) + E_{q_{\phi}}[\textup{log } p_{\theta}(x | z)]
+\begin{equation}\
+    \textup{elbo}_{\lambda, \beta}(x, \theta, \phi) = E_{q_{\phi}(z|x, \phi)}[\lambda \textup{ log}(p_{\theta}(x|z))] - \beta \textup{ KL}(q_{\phi}(z|x), p_{\theta}(z))
 \end{equation}
 
-where $q_{\phi}(z | x)$ is a \textit{guide distribution} that approximates the posterior $p(z | x)$; $\phi$ are the parameters of $q$. In the text, we call $p_{\theta}(x | z)$ a decoder and $q_{\theta}(z | x)$ an encoder. In practice, $q$ is set to the familiy of Gaussian distributions, where optimization amounts to learning $\phi=\{\mu, \sigma\}$. The standard reparametrization trick is employed to sample $z$.
+$\textup{KL}(p, q)$ is the Kullback Leibler divergence between distributions $p$ and $q$; $\beta$ and $\lambda$ are weights for the different terms in the ELBO. In practice, increasing $\beta$ encourages a better latent embedding but often leads to blurry samples.
 
 \subsection{Product of Experts}
 
-We wish to model the interaction between our modalities as a product of experts. Fortunately, because our guide distributions are Gaussian, MMVAEs take advantage of the fact the product of two Gaussian distributions is itself a Gaussian distribution \cite{cao2014generalized}. The mean and covariance of the resulting Gaussian distribution is:
-
-\begin{equation}
-    \mu = (\sum_{i} \mu_{i}\Sigma^{-1}_{i})(\sum_{i}\Sigma^{-1}_{i})^{-1}
-\end{equation}
-\begin{equation}
-    \Sigma = (\sum_{i} \Sigma^{-1}_{i})^{-1}
-\end{equation}
-
-where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert.
+We wish to model the interaction between our modalities as a product of experts \cite{hinton2006training}. Fortunately, because our guide distributions are Gaussian, the product of two Gaussian distributions is itself Gaussian \cite{cao2014generalized}. The resulting Gaussian distribution has mean $mu = (\sum_{i} \mu_{i}\Sigma^{-1}_{i})(\sum_{i}\Sigma^{-1}_{i})^{-1}$ and covariance $\Sigma = (\sum_{i} \Sigma^{-1}_{i})^{-1}$, where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert. In \cite{hinton2006training}, the prior $p_{\theta}(z)$ is included as an expert for regularization; we omit this term, having found it unstable in practice.
 
 \subsection{Multimodal Variational Autoencoders}
-Given a dataset $(X_{1}, X_{2}) = \{ (x_{1,1}, x_{2,1}), ..., (x_{1,N}, x_{2,N}) \}$, where $x_{1}$ and $x_{2}$ are two modalities of possibly different dimensions. We assume that $x_{1}$ and $x_{2}$ are conditionally independent on the latent state $z$. Figure \ref{fig:diagram:graph} shows the graphical model of the generative process: $z \sim p(z)$ and $x_{1}, x_{2} \sim p(x_{1}, x_{2} | z)$.
 
-We can estimate the lower bound of the log-likelihood $\textup{log }p(x_{1}, x_{2})$ as follows:
+A multimodal variational autoencoder is a model of the form $p_{\theta}(x, y, z) = p_{\theta}(z)p_{\theta}(x|z)p_{\theta}(y|z)$ where $x$ and $y$ are two modalities, i.e. images and text, $z$ is the latent variable, $p_{\theta}(x|z)$ is a image decoder, and $p_{\theta}(y|z)$ is a text decoder. The training objective is as in standard VAE, with the exception that we expand the evidence lower bound definition to include dual modalities.
 
-\begin{multline}
-\textup{log }p(x_{1}, x_{2}) \geq -D_{KL}(q_{\phi}(z | x_{1}, x_{2}) || p(z)) \\ + E_{q_{\phi}(z | x_{1}, x_{2})}[\textup{log } p_{\theta_{x_{1}}}(x_{1} | z)] + E_{q_{\phi}(z | x_{1}, x_{2})}[\textup{log } p_{\theta_{x_{2}}}(x_{2} | z)]
-\end{multline}
+\begin{equation}
+    \textup{elbo}_{\lambda_{x}, \lambda_{y}, \beta}(x, \theta_{x}, \theta_{y}, \phi) = E_{q_{\phi}(z|x, \phi)}[\lambda_{x} \textup{ log}(p_{\theta_{x}}(x|z)) + \lambda_{y} \textup{ log}(p_{\theta_{y}}(y|z))] - \beta \textup{ KL}(q_{\phi}(z|x, y), p_{\theta}(z))
+\end{equation}
 
-The equation above has two reconstruction terms, one for each modality. As with VAEs, we can parametrize the encoder and decoder as deep neural networks and use stochastic gradient descent to optimize the parameters, $\theta_{x_{1}}$, $\theta_{x_{2}}$, $\phi$. Because each modality learns a different feature representation, each modality has its own encoder and decoder.
+Note that we have additional hyperparameters, $\lambda_{x}$ and $\lambda_{y}$ that allow us to prioritize one modality over the other. This expanded ELBO is used for paired and unpaired examples. Combining these three terms gives us the Multimodal ELBO (MELBO) objective:
 
-In MMVAE, it is clear that we can compute the marginal and conditional distribution in both directions: given either $x_{1}$ or $x_{2}$ we can reconstruct both modalities. Additionally, we can easily extend MMVAE to handle more than two modalities, $p(x_{1}, x_{2}, ..., x_{n})$ using the same framework.
+\begin{equation}
+    J(x, y, \theta_{x}, \theta_{y}, \phi) = \textup{elbo}_{\lambda_{x}^{1}, \lambda_{y}^{1}, \beta^{1}}(x, y, \theta_{x}, \theta_{y}, \phi) + \textup{elbo}_{\lambda_{x}^{2}, \lambda_{y}^{2}, \beta^{2}}(x, \theta_{x}, \phi) + \textup{elbo}_{\lambda_{x}^{3}, \lambda_{y}^{3}, \beta^{3}}(y, \theta_{y}, \phi)
+\end{equation}
+
+The $\lambda$s scale the individual log likelihood terms and the $\beta$s scale the KL divergence terms. We set these parameters using a validation set on a per-dataset level. During training, we shown both paired and unpaired data; and we train the three encoders and decoders together with shared weights. Regardless of paired or unpaired examples, our objective requires both modalities to be reconstructed, sharing parameters for all decoders. We found that this is crucial to learning a good latent space between images and text. This is, to the best of our knowledge, a novel technique. Note that if $\lambda_{y}^{2}$ and $\lambda_{x}^{3}$ are set 0, the MELBO is equivalient to the TELBO \cite{hinton2006training}.
 
 \begin{figure}[h!]
 \centering
@@ -135,8 +129,18 @@ In MMVAE, it is clear that we can compute the marginal and conditional distribut
     \label{fig:diagram}
 \end{figure}
 
+\subsection{Missing Modalities} At training and test time, we can handle missing attributes by using a product of Gaussian experts, as in \cite{hinton2006training}. The inference network takes the form: $q(z|y_{1:k})$. Missing modalities then translates to fewer experts; training proceeds untouched. 
+
 \subsection{Weakly-Supervised Training}
-In most circumstances, paired modal data is both expensive and scarce while unimodal data, i.e. images or text is more easily available. The design of MMVAE allows for bootstrapping under sparse labels. During training, we consider input pairs of 3 types: the 1st modality alone,  the 2nd modality alone, or two separate modalities. Figure \ref{fig:diagram:modelv2}, \ref{fig:diagram:modelv1}, \ref{fig:diagram:modelv3} enumerate these three cases. In the case of a single modality, training is identical to VAE; the encoder $E_{i}(x_{i})$ returns $\mu_{i}$, $\sigma_{i}$, which is used to sample $z$ and decode. In the case of two modalities, each encoder returns $\mu_{i}$, $\sigma_{i}$, which we can combine via PoG to return the parameters of the joint Gaussian distribution. This is then used to sample $z$ and decode as in the traditional VAE. Crucially, we do not need additional loss terms or separate networks to handle unimodal and multimodal cases; the only change required is an additional PoG operation. In practice, we find that we only need a limited amount of paired multimodal examples in order to learn the cross-modal relations. 
+In most circumstances, paired data is both expensive and scarce while unimodal data, i.e. images or text is more easily available in the natural world. The design of MMVAE allows for bootstrapping under sparse labels. During training, we consider input pairs of three types: the first modality alone, the second modality alone, or two paired modalities. Figure \ref{fig:diagram:modelv2}, \ref{fig:diagram:modelv1}, \ref{fig:diagram:modelv3} enumerate these three cases. If given a paired example, use the full MELBO loss. If given only the first modality, decompose the objective to $J(x, \theta_{x}, \phi) = \textup{elbo}_{\lambda_{x}, 0, \beta}(x, \theta_{x}, \phi)$. If given only the second modality, decompose the objective to $J(x, \theta_{y}, \phi) = \textup{elbo}_{0, \lambda_{y}, \beta}(x, \theta_{y}, \phi)$. In other words, when only a single modality is present, use the standard VAE objective. In practice, we find that we only need a limited amount of paired multimodal examples in order to learn the latent space for our datasets.
+
+\section{Experimental Results}
+
+In this section, we fit the MMVAE to three datasets (MNIST, MultiMNIST, and COCO-Captions) using the MELBO objective. We measure the quality by approximating the marginal log likelihood with a lower bound, and through qualitative analysis of generated samples. We also perform a series of weak-supervision experiments on each dataset, progressively lowering the fraction of paired examples, and unpaired examples and observing performance. 
+
+\subsection{MNIST}
+\subsection{MultiMNIST}
+\subsection{COCO-Captions}
 
 \bibliographystyle{abbrvnat}
 {\small
