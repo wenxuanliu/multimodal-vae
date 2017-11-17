@@ -23,6 +23,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str, help='path to trained model file')
+    parser.add_argument('--pca_only', action='store_true', default=False)
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training')
     args = parser.parse_args()
@@ -62,13 +63,16 @@ if __name__ == "__main__":
     with open('./results/dump.pkl', 'wb') as fp:
         pickle.dump({'latents': latents, 'labels': labels}, fp)
 
-    # > 50 dimensions is too expensive for tSNE
-    if latents.shape[1] > 50:  
-        pca_50 = PCA(n_components=50)
-        latents = pca_50.fit_transform(latents)
-    
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
-    latents = tsne.fit_transform(latents)
+    if args.pca_only:
+        pca_2 = PCA(n_components=2)
+        latents = pca_2.fit_transform(latents)
+    else:
+        # > 50 dimensions is too expensive for tSNE
+        if latents.shape[1] > 50:  
+            pca_50 = PCA(n_components=50)
+            latents = pca_50.fit_transform(latents)
+        tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=300)
+        latents = tsne.fit_transform(latents)
 
     # now we have latents guaranteed to be 2 dimensions
     # let's plot the manifold
