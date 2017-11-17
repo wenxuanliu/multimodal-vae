@@ -166,9 +166,19 @@ For MELBO parameters, we anneal $\beta^{i}$ every 5 epochs with the following sc
 
 \subsection{COCO-Captions}
 
+The Microsoft COCO-Captions dataset contains 330k natural images, each tagged with 5 captions. Images are all rescaled to 64x64 and with a 64x64 center crop. When training, every epoch, we randomly sample a caption from the 5 available captions per image. At test time, we use the first caption. We use X for training, X for validation, and X for testing. Both modalities are more difficult than the MultiMNIST setting.
 
+\paragraph{Models} Identical training parameters to MultiMNIST. VAEs suffer from blurry samples when training on natural images. To address this, we replace the DCGAN decoder with a PixelVAE decoder. For the text encoder and decoders, we increase the hidden units to 500. Instead of learning our own continuous embedding, we use pre-trained GloVe embeddings for each word in our caption to support the large vocabulary size. Generation remains the same with a start and stop token. Identical MELBO parameters to MultiMNIST.
+
+\paragraph{Evaluation and Weak Supervision} There is no predictive task for COCO-Captions. Instead we measure the marginal loglikelihood for weak supervision tests. 
 
 \subsection{LibriSpeech}
+TODO.
+
+\section{Discussion}
+TODO.
+
+\section{Conclusions and Future Work}
 TODO.
 
 \bibliographystyle{abbrvnat}
