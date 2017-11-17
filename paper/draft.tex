@@ -41,9 +41,9 @@ In this work, we propose a multimodal variational autoencoder (MMVAE), an extens
 
 MMVAE jointly fits three encoders: $q(z | x, y)$, $q(z | x)$, and $q(z | y)$. Doing so, we can project images and natural text into the same latent space, and offer ways to translate between the two (bi-directional). For efficiency and simplicity, MMVAEs share parameters between the three encoders. The encoders interact via product of experts (POE) \cite{hinton2006training, vedantam2017generative}. 
 
-We report experimental results on three datasets. The first dataset is MNIST, where labels are stringified to text as the second modality. The second dataset is MultiMNIST, where 0 to 4 MNIST digits are placed on a 50x50 canvas. Unlike the traditional MultiMNIST, we do not vary the locations of these 0 to 4 digits. We again use the stringified label as a the second modality, where the label is the digit class from top-left to bottom-right. We briefly discuss introducing randomness into the text by permuting the string. The third dataset is the Microsoft COCO Captions dataset \cite{chen2015microsoft}, which contains 330K images and 5 captions per image. We show that our model performs competitively on these datasets.
+We report experimental results on four datasets. The first dataset is MNIST, where labels are stringified to text as the second modality. The second dataset is MultiMNIST, where 0 to 4 MNIST digits are placed on a 50x50 canvas. Unlike the traditional MultiMNIST, we do not vary the locations of these 0 to 4 digits. We again use the stringified label as a the second modality, where the label is the digit class from top-left to bottom-right. The third dataset is the Microsoft COCO Captions dataset \cite{chen2015microsoft}, which contains 330K images and 5 captions per image. The fourth dataset is the LibriSpeech dataset, which contains X waveforms and their text transcriptions. We show that our model performs competitively on these datasets.
 
-Finally, for each of the three datasets, we investigate how our model performs under weak-supervision by aggressively reducing the number of paired data points we provide to the model. We show that MMVAEs do not need a significant number of paired data points to learn a good joint representation across modalities, making this model feasible for real-world tasks i.e. caption generation or speech-to-text. We also briefly discuss reducing the number of data points of a single modality and its effect of learning.
+Finally, for each of the four datasets, we investigate how our model performs under weak-supervision by aggressively reducing the number of paired data points we provide to the model. We show that MMVAEs do not need a significant number of paired data points to learn a good joint representation across modalities, making this model feasible for real-world tasks i.e. caption generation or speech-to-text. We also briefly discuss reducing the number of data points of a single modality and its effect of learning.
 
 In summary, the contributions of this paper are as follows: first, we present MMVAEs, introducing the MELBO objective. Second, we show that the product of experts techniques works with two unstructured modalities: images and raw text. Lastly, we should that multimodal VAEs are good candidates for weakly supervised learning.
 
@@ -84,7 +84,7 @@ $\textup{KL}(p, q)$ is the Kullback Leibler divergence between distributions $p$
 
 \subsection{Product of Experts}
 
-We wish to model the interaction between our modalities as a product of experts \cite{hinton2006training}. Fortunately, because our guide distributions are Gaussian, the product of two Gaussian distributions is itself Gaussian \cite{cao2014generalized}. The resulting Gaussian distribution has mean $mu = (\sum_{i} \mu_{i}\Sigma^{-1}_{i})(\sum_{i}\Sigma^{-1}_{i})^{-1}$ and covariance $\Sigma = (\sum_{i} \Sigma^{-1}_{i})^{-1}$, where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert. In \cite{hinton2006training}, the prior $p_{\theta}(z)$ is included as an expert for regularization; we omit this term, having found it unstable in practice.
+We wish to model the interaction between our modalities as a product of experts \cite{hinton2006training}. Fortunately, because our guide distributions are Gaussian, the product of two Gaussian distributions is itself Gaussian \cite{cao2014generalized}. The resulting Gaussian distribution has mean $\mu = (\sum_{i} \mu_{i}\Sigma^{-1}_{i})(\sum_{i}\Sigma^{-1}_{i})^{-1}$ and covariance $\Sigma = (\sum_{i} \Sigma^{-1}_{i})^{-1}$, where $\mu_{i}$, $\Sigma_{i}$ is the mean and covariance of the $i$-th Gaussian expert. In \cite{hinton2006training}, the prior $p_{\theta}(z)$ is included as an expert for regularization; we omit this term, having found it unstable in practice.
 
 \subsection{Multimodal Variational Autoencoders}
 
@@ -136,11 +136,40 @@ In most circumstances, paired data is both expensive and scarce while unimodal d
 
 \section{Experimental Results}
 
-In this section, we fit the MMVAE to three datasets (MNIST, MultiMNIST, and COCO-Captions) using the MELBO objective. We measure the quality by approximating the marginal log likelihood with a lower bound, and through qualitative analysis of generated samples. We also perform a series of weak-supervision experiments on each dataset, progressively lowering the fraction of paired examples, and unpaired examples and observing performance. 
+In this section, we fit the MMVAE to four datasets (MNIST, MultiMNIST, COCO-Captions, LibriSpeech) using the MELBO objective. We measure the quality by approximating the marginal log likelihood with a lower bound, and through qualitative analysis of generated samples. We also perform a series of weak-supervision experiments on each dataset, progressively lowering the fraction of paired examples, and unpaired examples and observing performance. 
 
 \subsection{MNIST}
+
+This is the original MNIST dataset except the labels are casted as strings and treated as a separate modality. We use 50k for training, 10k validation, 10k testing. 
+
+\paragraph{Models} We train the MMVAE model using the MELBO objective. We use Adam for optimization with default learning rate of $1e-3$, a minibatch size of 128, 20 latent dimensions, and train for 20 epochs.
+
+For the image encoder, $p(x|z)$ and decoder, $q(z|x)$ we use a three layer MLP with batch normalization and ReLU nonlinearity. For the text encoder $p(y|z)$ and decoder $q(z|y)$, we use a continuous embedding of size 10, and a two layer MLP, again with batch normalization and ReLU. $q(z|y)$ additionally has a softmax to compute probabilities of each word in our vocabulary. The joint decoder, $q(z|x,y)$ is the same as $q(z|y)$, $q(x|y)$ since training shares parameters.
+
+For MELBO parameters, we set $\beta^{i} = 0.004$, and $\lambda_{x}^{i} = \lambda_{y}^{i} = 1, i \in \{1,2,3\}$.
+
+\paragraph{Evaluation} We first measure the marginal log likelihoods, $\textup{log}(p_{\textup{test}}(x))$, $\textup{log}(p_{\textup{test}}(y))$ by computing the ELBO with 1000 particles for importance sampling on 10k test set. For each test example, we can compute the ELBO using both modalities, just images, or just text. This results in 6 marginal probabilities, shown in table. Since MNIST is a prediction task, we can measure the predictive accuracy of our model by generating a text sample conditioned on a image as the label for that image. In table, we measure these nine metrics for a variety of MELBO variations. 
+
+\paragraph{Weak Supervision} We measure the performance of our model on predicting the correct MNIST label as the number of paired examples we show to the model approach 0. We also measure the same performance as the number of unpaired images/text we show approach 0. 
+
 \subsection{MultiMNIST}
+
+This is a variant of the original MNIST dataset where between 0 and 4 MNIST digits are composed together on a 50x50 canvas. Given a MultiMNIST image, we generate the paired text example by concatenating the digit classes from top-left to bottom-right. Notably, this is a much more difficult text task than our MNIST dataset due to variable text length and a much larger space of acceptable words. We again use 50k for training, 10k for validation, 10k for testing.
+
+\paragraph{Models} Similar training parameters as in MNIST except we use a minibatch size of 64, 100 latent dimensions, and train for 40 epochs due to larger encoder/decoder models.
+
+For the image encoder and decoder, we use the DCGAN architecture from. For the text encoder, we use a continuous embedding layer of size 10, followed by a bidirectional GRU with $50$ hidden units, and a single fully connected layer to project into our latent dimension size. For the text decoder, we generate a single character at a time. We include a start token and a stop token in our vocabulary. Generating text is as follows: provided a start token, get its continuous embedding, feed it through a fully connected layer, then a unidirectional GRU, followed by another fully connected layer and a softmax over the 10 character space. We sample a new character and repeat the process until generating a stop token. See supplement for more details.
+
+For MELBO parameters, we anneal $\beta^{i}$ every 5 epochs with the following schedule: 1e-5, 1e-4, 1e-3, 1e-2, 1e-1. We set $\lambda_{y}^{2} = 0.5$ and $\lambda_{x}^{1} = 0.1$. All other $\lambda$s are set to 1.
+
+\paragraph{Evaluation and Weak Supervision} Setup is identical to the MNIST setting except we are measuring (1) that the length of the generated text matches the ground truth, (2) accuracy of matching characters i.e. 2845 and 3845 would be 75\% accuracy, and (3) accuracy of matching sequences i.e. 2845 and 3845 would be incorrect.
+
 \subsection{COCO-Captions}
+
+
+
+\subsection{LibriSpeech}
+TODO.
 
 \bibliographystyle{abbrvnat}
 {\small
