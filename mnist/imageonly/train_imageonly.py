@@ -59,7 +59,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def loss_function(recon_x, x, mu, logvar):
     batch_size = recon_x.size(0)
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), size_average=False)
+    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784))
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014

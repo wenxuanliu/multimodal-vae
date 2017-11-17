@@ -64,18 +64,19 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     image_BCE, text_BCE = 0, 0
 
     if recon_image is not None and image is not None:
-        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784), 
-                                                       size_average=False)
+        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784))
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text, text, size_average=False)
+        text_BCE = lambda_yx * F.nll_loss(recon_text, text)
 
+    import pdb; pdb.set_trace()
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return (image_BCE + text_BCE + KLD / 784) / batch_size
+    KLD /= batch_size * 784  # for each pixel
+    return image_BCE + text_BCE + KLD
 
 
 if __name__ == "__main__":
@@ -137,7 +138,7 @@ if __name__ == "__main__":
             loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
                                    recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.5)
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                    recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
             
@@ -178,9 +179,9 @@ if __name__ == "__main__":
             loss_1 = loss_function(mu_1, logvar_1, recon_image=recon_image_1, image=image, 
                                    recon_text=recon_text_1, text=text, lambda_xy=1., lambda_yx=1.)
             loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
-                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=0.5)
+                                   recon_text=recon_text_2, text=text, lambda_xy=1., lambda_yx=1.)
             loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
-                                   recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)
+                                   recon_text=recon_text_3, text=text, lambda_xy=1., lambda_yx=1.)
 
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]

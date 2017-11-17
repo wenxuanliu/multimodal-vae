@@ -14,7 +14,7 @@ import torch
 from torch.autograd import Variable
 
 import numpy as np
-from train import load_checkpoint
+from train_imageonly import load_checkpoint
 
 
 def array2d_string(A):
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
-
+    
     if args.cuda:
         vae.cuda()
 
@@ -51,7 +51,6 @@ if __name__ == "__main__":
     y_values = torch.linspace(-3, 3, ny)
 
     image_canvas = torch.zeros((28 * ny, 28 * nx))
-    text_canvas = torch.zeros((ny, nx))
 
     for i, yi in enumerate(x_values):
         for j, xi in enumerate(y_values):
@@ -59,12 +58,9 @@ if __name__ == "__main__":
             if args.cuda:
                 data = data.cuda()
 
-            recon_image = vae.decode_image(data)
-            recon_text = vae.decode_text(data)
-
+            recon_image = vae.decode(data)
             image_canvas[(nx-i-1)*28:(nx-i)*28, j*28:(j+1)*28] = \
                 recon_image[0].cpu().data.reshape(28, 28)
-            text_canvas[i, j] = recon_text[0].cpu().data
 
     if not os.path.exists('./results'):
         os.makedirs('./results')
@@ -75,6 +71,3 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig('./results/latent_viz_image.png')
 
-    text_canvas = text_canvas.numpy().tolist()
-    with open('./results/latent_viz_text.txt', 'wb') as fp:
-        fp.write(array2d_string(text_canvas))
