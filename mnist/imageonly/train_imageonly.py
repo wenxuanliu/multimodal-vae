@@ -14,6 +14,7 @@ from torch.autograd import Variable
 from torchvision import transforms, datasets
 from torchvision.utils import save_image
 
+sys.path.append('..')
 from model import VAE
 
 
@@ -88,12 +89,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    if not os.path.isdir('./trained_models'):
+        os.mkdir('./trained_models')
+
+    if not os.path.isdir('./results'):
+        os.mkdir('./results')
+
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=True, download=True,
+        datasets.MNIST('../data', train=True, download=True,
                        transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=False, download=True, 
+        datasets.MNIST('../data', train=False, download=True, 
                        transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True)
 
@@ -154,7 +161,7 @@ if __name__ == "__main__":
             'best_loss': best_loss,
             'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, folder='./trained_models/image_only')
+        }, is_best, folder='./trained_models')
 
         if is_best:
             sample = Variable(torch.randn(64, 20))
@@ -163,4 +170,4 @@ if __name__ == "__main__":
 
             sample = vae.decode(sample).cpu()
             save_image(sample.data.view(64, 1, 28, 28),
-                       './results/image_only/sample_image.png')
+                       './results/sample_image.png')

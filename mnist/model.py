@@ -17,6 +17,7 @@ class MultimodalVAE(nn.Module):
         self.text_encoder = TextEncoder(n_latents)
         self.text_decoder = TextDecoder(n_latents)
         self.experts = ProductOfExperts()
+        self.n_latents = n_latents
 
     def reparametrize(self, mu, logvar):
         if self.training:

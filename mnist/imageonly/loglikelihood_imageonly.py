@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # loader for MNIST
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=False, download=True,
+        datasets.MNIST('../data', train=False, download=True,
                        transform=transforms.ToTensor()),
         batch_size=64, shuffle=True)
 

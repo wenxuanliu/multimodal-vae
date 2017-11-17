@@ -6,8 +6,9 @@ import torch
 from torch.autograd import Variable
 from torchvision import transforms, datasets
 
-from train import load_checkpoint
+from train_imageonly import load_checkpoint
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 
 if __name__ == "__main__":
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     # use this instead of shuffle loader because we don't want 
     # to have negative examples here.
     loader = torch.utils.data.DataLoader(
-        datasets.MNIST('./data', train=False, download=True, 
+        datasets.MNIST('../data', train=False, download=True, 
                        transform=transforms.ToTensor()),
         batch_size=128, shuffle=True)
 
@@ -45,7 +46,9 @@ if __name__ == "__main__":
         image, text = Variable(image, volatile=True), Variable(text, volatile=True)
         image = image.view(-1, 784)  # flatten image
 
-        z = vae.gen_latents(image, text)
+        mu, logvar = vae.encode(image)
+        z = vae.reparameterize(mu, logvar)
+        
         if batch_idx == 0:
             latents = z
             labels = text
@@ -60,7 +63,7 @@ if __name__ == "__main__":
         pickle.dump({'latents': latents, 'labels': labels}, fp)
 
     # > 50 dimensions is too expensive for tSNE
-    if latents.size(1) > 50:  
+    if latents.shape[1] > 50:  
         pca_50 = PCA(n_components=50)
         latents = pca_50.fit_transform(latents)
     

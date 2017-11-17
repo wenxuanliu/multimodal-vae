@@ -44,7 +44,9 @@ if __name__ == "__main__":
     import os
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('n_samples', type=int, help='Number of images and texts to sample.')
+    parser.add_argument('--model_path', type=str, help='path to trained model file')
+    parser.add_argument('--n_samples', type=int, default=64, 
+                        help='Number of images and texts to sample.')
     parser.add_argument('--condition_on_image', type=int, default=None,
                         help='If True, generate text conditioned on an image.')
     parser.add_argument('--condition_on_text', type=int, default=None, 

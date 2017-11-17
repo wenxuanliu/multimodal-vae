@@ -39,7 +39,9 @@ if __name__ == "__main__":
     import os
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('n_samples', type=int, help='Number of images and texts to sample.')
+    parser.add_argument('model_path', type=str, help='path to model file')
+    parser.add_argument('--n_samples', type=int, default=64, 
+                        help='Number of images and texts to sample.')
     parser.add_argument('--condition_on_image', type=int, default=None,
                         help='If True, generate text conditioned on an image.')
     parser.add_argument('--cuda', action='store_true', default=False,
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     args.cuda = args.cuda and torch.cuda.is_available()
 
     # load trained model
-    vae = load_checkpoint('./trained_models/model_best.pth.tar', use_cuda=args.cuda)
+    vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
     if args.cuda:
         vae.cuda()
@@ -57,6 +59,9 @@ if __name__ == "__main__":
     if not args.condition_on_image:
         mu = Variable(torch.Tensor([0]))
         std = Variable(torch.Tensor([1]))
+        if args.cuda:
+            mu = mu.cuda()
+            std = std.cuda()
     else:  # mode 2: generate conditioned on image
         image = fetch_mnist_image(args.condition_on_image)
         if args.cuda:
@@ -65,7 +70,7 @@ if __name__ == "__main__":
         std = logvar.mul(0.5).exp_()
 
     # sample from uniform gaussian
-    n_latents = vae.encoder.n_latents
+    n_latents = vae.n_latents
     sample = Variable(torch.randn(args.n_samples, n_latents))
     if args.cuda:
         sample = sample.cuda()
@@ -84,9 +89,3 @@ if __name__ == "__main__":
     save_image(image_recon.data.view(args.n_samples, 1, 28, 28),
                './results/sample_image.png')
 
-    # save text samples to filesystem
-    with open('./results/sample_texts.txt', 'w') as fp:
-        text_recon_np = text_recon.data.numpy()
-        text_recon_np = np.argmax(text_recon_np, axis=1).tolist()
-        for i, item in enumerate(text_recon_np):
-            fp.write('Text (%d): %s\n' % (i, item))
