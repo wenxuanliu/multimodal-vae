@@ -13,6 +13,7 @@
 \usepackage{subcaption}
 \usepackage{amsmath}
 \usepackage{natbib}
+\usepackage{breqn}
 
 \setcitestyle{numbers,open={[},close={]}}
 \graphicspath{ {./images/} }
@@ -52,9 +53,9 @@ In deep learning, multimodal learning is often done using separate branches in t
 
 Recently, there have been several works on such joint models, many of which share commonalities to our proposed model. For example, the BiVCCA employs a similar VAE model with the objective shown below. It includes two inference networks, one for each modality. We note that MMVAE uses a third multimodal objective; we show in our experiments that doing so is important in learning a useful latent space. The BiVCCA loss encourages proper reconstruction of both $x$ and $y$ given only one; $\mu$ acts as a weight to prioritize different modalities. 
 
-\begin{equation}
-    J(x, y, \theta, \phi) = \mu (E_{q_{\phi_{x}}(z|x)}[\textup{log}(p_{\theta_{x}}(x|z)) + \lambda \textup{ log}(p_{\theta_{y}}(y|z))] - \textup{KL}(q_{\theta_{x}}(z|x)), p_{\theta}(z)) + (1 - \mu) (E_{q_{\phi_{y}}(z|x)}[\textup{log}(p_{\theta_{x}}(x|z)) + \lambda \textup{ log}(p_{\theta_{y}}(y|z))] - \textup{KL}(q_{\theta_{y}}(z|y)), p_{\theta}(z))
-\end{equation}
+\begin{multline}
+    J(x, y, \theta, \phi) = \mu (E_{q_{\phi_{x}}(z|x)}[\textup{log}(p_{\theta_{x}}(x|z)) + \lambda \textup{ log}(p_{\theta_{y}}(y|z))] - \textup{KL}(q_{\theta_{x}}(z|x)), p_{\theta}(z)) \\ + (1 - \mu) (E_{q_{\phi_{y}}(z|x)}[\textup{log}(p_{\theta_{x}}(x|z)) + \lambda \textup{ log}(p_{\theta_{y}}(y|z))] - \textup{KL}(q_{\theta_{y}}(z|y)), p_{\theta}(z))
+\end{multline}
 
 \citet{suzuki2016joint} then build onto the BiVCCA objective with their JMVAE model, that adds an additional multimodal encoder $q(z|x,y)$ and two additional KL divergence terms to bring $q(z|x,y)$ close to $q(z|x)$ and $q(z|y)$. More explicitly, their objective is the following:
 
@@ -90,15 +91,15 @@ We wish to model the interaction between our modalities as a product of experts 
 
 A multimodal variational autoencoder is a model of the form $p_{\theta}(x, y, z) = p_{\theta}(z)p_{\theta}(x|z)p_{\theta}(y|z)$ where $x$ and $y$ are two modalities, i.e. images and text, $z$ is the latent variable, $p_{\theta}(x|z)$ is a image decoder, and $p_{\theta}(y|z)$ is a text decoder. The training objective is as in standard VAE, with the exception that we expand the evidence lower bound definition to include dual modalities.
 
-\begin{equation}
-    \textup{elbo}_{\lambda_{x}, \lambda_{y}, \beta}(x, \theta_{x}, \theta_{y}, \phi) = E_{q_{\phi}(z|x, \phi)}[\lambda_{x} \textup{ log}(p_{\theta_{x}}(x|z)) + \lambda_{y} \textup{ log}(p_{\theta_{y}}(y|z))] - \beta \textup{ KL}(q_{\phi}(z|x, y), p_{\theta}(z))
-\end{equation}
+\begin{multline}
+    \textup{elbo}_{\lambda_{x}, \lambda_{y}, \beta}(x, \theta_{x}, \theta_{y}, \phi) = E_{q_{\phi}(z|x, \phi)}[\lambda_{x} \textup{ log}(p_{\theta_{x}}(x|z)) + \lambda_{y} \textup{ log}(p_{\theta_{y}}(y|z))] \\ - \beta \textup{ KL}(q_{\phi}(z|x, y), p_{\theta}(z))
+\end{multline}
 
 Note that we have additional hyperparameters, $\lambda_{x}$ and $\lambda_{y}$ that allow us to prioritize one modality over the other. This expanded ELBO is used for paired and unpaired examples. Combining these three terms gives us the Multimodal ELBO (MELBO) objective:
 
-\begin{equation}
-    J(x, y, \theta_{x}, \theta_{y}, \phi) = \textup{elbo}_{\lambda_{x}^{1}, \lambda_{y}^{1}, \beta^{1}}(x, y, \theta_{x}, \theta_{y}, \phi) + \textup{elbo}_{\lambda_{x}^{2}, \lambda_{y}^{2}, \beta^{2}}(x, \theta_{x}, \phi) + \textup{elbo}_{\lambda_{x}^{3}, \lambda_{y}^{3}, \beta^{3}}(y, \theta_{y}, \phi)
-\end{equation}
+\begin{multline}
+    J(x, y, \theta_{x}, \theta_{y}, \phi) = \textup{elbo}_{\lambda_{x}^{1}, \lambda_{y}^{1}, \beta^{1}}(x, y, \theta_{x}, \theta_{y}, \phi) \\ + \textup{elbo}_{\lambda_{x}^{2}, \lambda_{y}^{2}, \beta^{2}}(x, \theta_{x}, \phi) + \textup{elbo}_{\lambda_{x}^{3}, \lambda_{y}^{3}, \beta^{3}}(y, \theta_{y}, \phi)
+\end{multline}
 
 The $\lambda$s scale the individual log likelihood terms and the $\beta$s scale the KL divergence terms. We set these parameters using a validation set on a per-dataset level. During training, we shown both paired and unpaired data; and we train the three encoders and decoders together with shared weights. Regardless of paired or unpaired examples, our objective requires both modalities to be reconstructed, sharing parameters for all decoders. We found that this is crucial to learning a good latent space between images and text. This is, to the best of our knowledge, a novel technique. Note that if $\lambda_{y}^{2}$ and $\lambda_{x}^{3}$ are set 0, the MELBO is equivalient to the TELBO \cite{hinton2006training}.
 
@@ -152,6 +153,87 @@ For MELBO parameters, we set $\beta^{i} = 0.004$, and $\lambda_{x}^{i} = \lambda
 
 \paragraph{Weak Supervision} We measure the performance of our model on predicting the correct MNIST label as the number of paired examples we show to the model approach 0. We also measure the same performance as the number of unpaired images/text we show approach 0. 
 
+\begin{table}[!h]
+    \centering
+    \begin{tabular}{ l | c | c }
+        Model (MNIST) & $\leq \textup{log }p(x)$ & $\leq \textup{log }p(y)$ \\
+        \hline
+        VAE & & - \\
+        BiVCCA & &  \\
+        JMVAE & & \\
+        MMVAE (Joint) & & \\
+        MMVAE (Image-only) & & \\
+        MMVAE (Text-only) & & \\
+        MMVAE (Anneal KL) & & \\
+        MMVAE (With Universal Expert) & & \\
+        MMVAE ($\lambda_{y}^{1} = \lambda_{x}^{1} = 0$) & & \\
+        MMVAE ($\lambda_{y}^{2} = \lambda_{x}^{3} = 0$) & & \\
+        MMVAE ($\lambda_{x}^{2} = \lambda_{y}^{3} = 0$) & & \\
+        MMVAE ($\lambda_{x}^{2} = \lambda_{y}^{2} = \lambda_{x}^{3} = \lambda_{y}^{3} = 0$) & & \\
+        \newline
+    \end{tabular}
+    \caption{TODO}
+    \label{table:mnist:marginal}
+\end{table}
+
+\begin{figure}[!h]
+\centering
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_condition_on_image_text_9_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_condition_on_image_9_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_condition_on_text_9_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \caption{\emph{MNIST Dataset}: MMVAE is bidirectional, allowing us to try samples unconditionally, or conditioned on modalit(ies) taking a particular value. We note that samples conditioned on both image and text are the most sharp and have the lowest variance. As expected, reconstructed images from text alone are the blurriest. (a) Image samples from $z \sim N(0, 1)$. (b) Image samples from $p(z|x=9,y=9)$. (c) Image samples from $p(z|x=9)$. (d) Image samples from $p(z|y=9)$.}
+    \label{fig:mnist:samples}
+\end{figure}
+
+\begin{table}[!h]
+    \centering
+    \begin{tabular}{ l | c | c | c | c | c | c | c | c | c | c | c}
+        (a) & 5 & 7 & 1 & 3 & 1 & 6 & 3 & 7 & 5 & 6 & 0 \\
+        \hline
+        (b) & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 \\
+        \hline
+        (c) & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 \\
+        \hline
+        (d) & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 & 9 \\
+        \newline
+    \end{tabular}
+    \caption{\emph{MNIST Dataset}: Generated text samples from MMVAE trained on MNIST. (a) Text samples from $z \sim N(0, 1)$. (b) Text samples from $p(z|x=9,y=9)$. (c) Text samples from $p(z|x=9)$. (d) Text samples from $p(z|y=9)$. From (b)-(d), we note that conditioning on an image produces the expected text samples.}
+    \label{table:mnist:samples}
+\end{table}
+
+\begin{figure}[!h]
+\centering
+    \begin{subfigure}[b]{.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_pca_manifold.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{mnist_mmvae_joint_weak_supervision.png}
+        \caption{}
+    \end{subfigure}
+    \caption{\emph{MNIST Dataset}: (a) Manifold split by MNIST class; this was generated using the top two principal components from 10k latent samples of dimension 20. We can see that each of the classes form a distinct cluster, suggesting that the latent space is well-defined. (b) The effects of weak supervision on the MNIST prediction task where paired data is only shown a fraction of the time; with 25\% supervision, the model reaches 80\% accuracy.}
+    \label{fig:mnist:weaksupervision}
+\end{figure}
+
 \subsection{MultiMNIST}
 
 This is a variant of the original MNIST dataset where between 0 and 4 MNIST digits are composed together on a 50x50 canvas. Given a MultiMNIST image, we generate the paired text example by concatenating the digit classes from top-left to bottom-right. Notably, this is a much more difficult text task than our MNIST dataset due to variable text length and a much larger space of acceptable words. We again use 50k for training, 10k for validation, 10k for testing.
@@ -164,13 +246,60 @@ For MELBO parameters, we anneal $\beta^{i}$ every 5 epochs with the following sc
 
 \paragraph{Evaluation and Weak Supervision} Setup is identical to the MNIST setting except we are measuring (1) that the length of the generated text matches the ground truth, (2) accuracy of matching characters i.e. 2845 and 3845 would be 75\% accuracy, and (3) accuracy of matching sequences i.e. 2845 and 3845 would be incorrect.
 
+\begin{table}[!h]
+    \centering
+    \begin{tabular}{ l | c | c }
+        Model (MultiMNIST) & $\leq \textup{log }p(x)$ & $\leq \textup{log }p(y)$ \\
+        \hline
+        VAE & & - \\
+        BiVCCA & &  \\
+        JMVAE & & \\
+        MMVAE (Joint) & & \\
+        MMVAE (Image-only) & & \\
+        MMVAE (Text-only) & & \\
+        MMVAE (Anneal KL) & & \\
+        MMVAE (With Universal Expert) & & \\
+        MMVAE ($\lambda_{y}^{1} = \lambda_{x}^{1} = 0$) & & \\
+        MMVAE ($\lambda_{y}^{2} = \lambda_{x}^{3} = 0$) & & \\
+        MMVAE ($\lambda_{x}^{2} = \lambda_{y}^{3} = 0$) & & \\
+        MMVAE ($\lambda_{x}^{2} = \lambda_{y}^{2} = \lambda_{x}^{3} = \lambda_{y}^{3} = 0$) & & \\
+        \newline
+    \end{tabular}
+    \caption{TODO}
+    \label{table:multimnist:marginal}
+\end{table}
+
 \subsection{COCO-Captions}
 
 The Microsoft COCO-Captions dataset contains 330k natural images, each tagged with 5 captions. Images are all rescaled to 64x64 and with a 64x64 center crop. When training, every epoch, we randomly sample a caption from the 5 available captions per image. At test time, we use the first caption. We use X for training, X for validation, and X for testing. Both modalities are more difficult than the MultiMNIST setting.
 
 \paragraph{Models} Identical training parameters to MultiMNIST. VAEs suffer from blurry samples when training on natural images. To address this, we replace the DCGAN decoder with a PixelVAE decoder. For the text encoder and decoders, we increase the hidden units to 500. Instead of learning our own continuous embedding, we use pre-trained GloVe embeddings for each word in our caption to support the large vocabulary size. Generation remains the same with a start and stop token. Identical MELBO parameters to MultiMNIST.
 
-\paragraph{Evaluation and Weak Supervision} There is no predictive task for COCO-Captions. Instead we measure the marginal loglikelihood for weak supervision tests. 
+\paragraph{Evaluation and Weak Supervision} There is no predictive task for COCO-Captions. Instead we measure the marginal log likelihood for weak supervision tests. 
+
+\begin{table}[!h]
+    \centering
+    \begin{tabular}{ l | c | c }
+        Model (COCO-Caption) & $\leq \textup{log }p(x)$ & $\leq \textup{log }p(y)$ \\
+        \hline
+        VAE & & - \\
+        BiVCCA & &  \\
+        JMVAE & & \\
+        MMVAE (Joint) & & \\
+        MMVAE (Image-only) & & \\
+        MMVAE (Text-only) & & \\
+        \newline
+    \end{tabular}
+    \caption{TODO}
+    \label{table:mnist:marginal}
+\end{table}
+
+\begin{figure}[!h]
+    \centering
+    \includegraphics[width=.5\linewidth]{coco_mmvae_image_sample.png}
+    \caption{This is a work in progress. These samples were generated with a DCGAN encoder and decoder, hence they are very blurry. However, we can make out coherent structure if we squint. I'm hoping that with a PixelCNN decoder (PixelVAE), we will get sharper samples.}
+    \label{fig:WIP:coco:samples}
+\end{figure}
 
 \subsection{LibriSpeech}
 TODO.
