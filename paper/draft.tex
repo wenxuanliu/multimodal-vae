@@ -230,7 +230,7 @@ For MELBO parameters, we set $\beta^{i} = 0.004$, and $\lambda_{x}^{i} = \lambda
         \includegraphics[width=\linewidth]{mnist_mmvae_joint_weak_supervision.png}
         \caption{}
     \end{subfigure}
-    \caption{\emph{MNIST Dataset}: (a) Manifold split by MNIST class; this was generated using the top two principal components from 10k latent samples of dimension 20. We can see that each of the classes form a distinct cluster, suggesting that the latent space is well-defined. (b) The effects of weak supervision on the MNIST prediction task where paired data is only shown a fraction of the time; with 25\% supervision, the model reaches 80\% accuracy.}
+    \caption{\emph{MNIST Dataset}: (a) Manifold split by MNIST class; this was generated using the top two principal components from 10k latent samples of dimension 20. We can see that each of the classes form a distinct cluster, suggesting that the latent space is well-defined. (b) The effects of weak supervision on the MNIST prediction task where paired data is only shown a fraction of the time; with 25\% supervision, the model reaches 80\% accuracy. TODO: add weak supervision tests for individual modalities.}
     \label{fig:mnist:weaksupervision}
 \end{figure}
 
@@ -240,7 +240,7 @@ This is a variant of the original MNIST dataset where between 0 and 4 MNIST digi
 
 \paragraph{Models} Similar training parameters as in MNIST except we use a minibatch size of 64, 100 latent dimensions, and train for 40 epochs due to larger encoder/decoder models.
 
-For the image encoder and decoder, we use the DCGAN architecture from. For the text encoder, we use a continuous embedding layer of size 10, followed by a bidirectional GRU with $50$ hidden units, and a single fully connected layer to project into our latent dimension size. For the text decoder, we generate a single character at a time. We include a start token and a stop token in our vocabulary. Generating text is as follows: provided a start token, get its continuous embedding, feed it through a fully connected layer, then a unidirectional GRU, followed by another fully connected layer and a softmax over the 10 character space. We sample a new character and repeat the process until generating a stop token. See supplement for more details.
+For the image encoder and decoder, we use the DCGAN architecture from \cite{radford2015unsupervised}. For the text encoder, we use a continuous embedding layer of size 10, followed by a bidirectional GRU with $50$ hidden units, and a single fully connected layer to project into our latent dimension size. For the text decoder, we generate a single character at a time. We include a start token and a stop token in our vocabulary. Generating text is as follows: provided a start token, get its continuous embedding, feed it through a fully connected layer, then a unidirectional GRU, followed by another fully connected layer and a softmax over the 10 character space. We sample a new character and repeat the process until generating a stop token. See supplement for more details.
 
 For MELBO parameters, we anneal $\beta^{i}$ every 5 epochs with the following schedule: 1e-5, 1e-4, 1e-3, 1e-2, 1e-1. We set $\lambda_{y}^{2} = 0.5$ and $\lambda_{x}^{1} = 0.1$. All other $\lambda$s are set to 1.
 
@@ -269,11 +269,53 @@ For MELBO parameters, we anneal $\beta^{i}$ every 5 epochs with the following sc
     \label{table:multimnist:marginal}
 \end{table}
 
+\begin{figure}[!h]
+\centering
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_condition_image_text_1773_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.24\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_condition_text_1773_image_sample.png}
+        \caption{}
+    \end{subfigure}
+    \caption{\emph{MultiMNIST Dataset}: (a) Image samples from $z \sim N(0, 1)$. (b) Image samples from $p(z|x=1773,y=1773)$. (c) Image samples from $p(z|y=1773)$. The quality of the samples from (b) and (c) are almost identical.}
+    \label{fig:multimnist:samples}
+\end{figure}
+
+\begin{figure}[!h]
+\centering
+    \begin{subfigure}[b]{.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_joint_weak_supervision.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_modal_char_weak_supervision.png}
+        \caption{}
+    \end{subfigure}
+    \begin{subfigure}[b]{.32\linewidth}
+        \centering
+        \includegraphics[width=\linewidth]{multimnist_mmvae_modal_length_weak_supervision.png}
+        \caption{}
+    \end{subfigure}
+    \caption{\emph{MultiMNIST Dataset}: a series of weak supervision experiments. (a) Effect of reducing the number of paired examples shown during training. For each image in the test set, generate text conditioned on the image, and measure the number of matching characters (blue line) and the length of text (orange line). The figure shows large gains from 0\% to 10\% supervision with much smaller gains as we approach 100\% supervision, suggesting that MMVAEs do not require a lot of paired data to learn a good latent embedding. (b) Effect of reducing the number of image/text examples on the character prediction task, and (c) on the length prediction task. In (b), the performance is much more sensitive to the number of text samples while in (c), the effect is more balanced between weak image and text supervision. TODO: add embedding pca.}
+    \label{fig:multimnist:weaksupervision}
+\end{figure}
+
 \subsection{COCO-Captions}
 
 The Microsoft COCO-Captions dataset contains 330k natural images, each tagged with 5 captions. Images are all rescaled to 64x64 and with a 64x64 center crop. When training, every epoch, we randomly sample a caption from the 5 available captions per image. At test time, we use the first caption. We use X for training, X for validation, and X for testing. Both modalities are more difficult than the MultiMNIST setting.
 
-\paragraph{Models} Identical training parameters to MultiMNIST. VAEs suffer from blurry samples when training on natural images. To address this, we replace the DCGAN decoder with a PixelVAE decoder. For the text encoder and decoders, we increase the hidden units to 500. Instead of learning our own continuous embedding, we use pre-trained GloVe embeddings for each word in our caption to support the large vocabulary size. Generation remains the same with a start and stop token. Identical MELBO parameters to MultiMNIST.
+\paragraph{Models} Identical training parameters to MultiMNIST. VAEs suffer from blurry samples when training on natural images. To address this, we replace the DCGAN decoder with a PixelVAE decoder \cite{gulrajani2016pixelvae, oord2016pixel}. For the text encoder and decoders, we increase the hidden units to 500. Instead of learning our own continuous embedding, we use pre-trained GloVe embeddings for each word in our caption to support the large vocabulary size. Generation remains the same with a start and stop token. Identical MELBO parameters to MultiMNIST.
 
 \paragraph{Evaluation and Weak Supervision} There is no predictive task for COCO-Captions. Instead we measure the marginal log likelihood for weak supervision tests. 
 
