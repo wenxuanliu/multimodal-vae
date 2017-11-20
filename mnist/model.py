@@ -2,6 +2,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import numpy as np
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -268,7 +270,7 @@ class PixelCNN(nn.Module):
 
 class RGBPixelCNN(nn.Module):
     def __init__(self):
-        super(PixelCNN, self).__init__()
+        super(RGBPixelCNN, self).__init__()
         self.net = nn.Sequential(
             MaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
@@ -299,7 +301,7 @@ class RGBPixelCNN(nn.Module):
 
     def forward(self, x):
         x = self.net(x)
-        x = x.view(-1, 256, 3, 64, 64)  # give it RGB channels
+        x = x.view(-1, 256, 3, 28, 28)  # give it RGB channels
         return x
 
 
@@ -327,8 +329,8 @@ class MaskedConv2d(nn.Conv2d):
 
         def bmask(i_out, i_in):
             # same pixel masking - pixel won't access next color (conv filter dim)
-            cout_idx = np.expand_dims(np.arange(Cout) % 3 == i_out, 1)
-            cin_idx = np.expand_dims(np.arange(Cin) % 3 == i_in, 0)
+            cout_idx = np.expand_dims(np.arange(cout) % 3 == i_out, 1)
+            cin_idx = np.expand_dims(np.arange(cin) % 3 == i_in, 0)
             a1, a2 = np.broadcast_arrays(cout_idx, cin_idx)
             return a1 * a2
 

@@ -70,14 +70,18 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/rgb_pixel_cnn'):
         os.makedirs('./results/rgb_pixel_cnn')
 
+    def make_rgb(x):
+        x = transforms.ToTensor()(x)
+        return torch.cat((x, x, x), dim=0) 
+
     # create loaders for MNIST
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('./data', train=True, download=True,
-                       transform=transforms.ToTensor()),
+                       transform=make_rgb),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('./data', train=False, download=True,
-                       transform=transforms.ToTensor()),
+                       transform=make_rgb),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -146,8 +150,8 @@ if __name__ == "__main__":
             sample = sample.cuda()
         model.eval() 
 
-        for i in xrange(64):
-            for j in xrange(64):
+        for i in xrange(28):
+            for j in xrange(28):
                 output = model(Variable(sample, volatile=True))
                 
                 for k in xrange(3):
