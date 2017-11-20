@@ -266,15 +266,80 @@ class PixelCNN(nn.Module):
         return x
 
 
+class RGBPixelCNN(nn.Module):
+    def __init__(self):
+        super(PixelCNN, self).__init__()
+        self.net = nn.Sequential(
+            MaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(64), 
+            nn.ReLU(True),
+            nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
+        )
+
+    def forward(self, x):
+        x = self.net(x)
+        x = x.view(-1, 256, 3, 64, 64)  # give it RGB channels
+        return x
+
+
+
 class MaskedConv2d(nn.Conv2d):
+    # Adapted from http://sergeiturukin.com/2017/02/22/pixelcnn.html & 
+    # https://github.com/rampage644/wavenet/blob/master/wavenet/models.py
     def __init__(self, mask_type, *args, **kwargs):
         super(MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
-        _, _, kH, kW = self.weight.size()
+        cout, cin, kh, kw = self.weight.size()
+        yc, xc = kh // 2, kw // 2
+        
+        # initialize at all 1s
         self.mask.fill_(1)
-        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
-        self.mask[:, :, kH // 2 + 1:] = 0
+
+        # create the mask in NumPy because we get so much better
+        # indexing/slicing. We don't need this part to be differentiable anyway.
+        mask_np = self.mask.numpy()
+
+        # context masking: subsequent pixels won't have access to next pixels
+        mask_np[:, :, yc+1:, :] = 0
+        mask_np[:, :, yc:, xc+1:] = 0
+
+        def bmask(i_out, i_in):
+            # same pixel masking - pixel won't access next color (conv filter dim)
+            cout_idx = np.expand_dims(np.arange(Cout) % 3 == i_out, 1)
+            cin_idx = np.expand_dims(np.arange(Cin) % 3 == i_in, 0)
+            a1, a2 = np.broadcast_arrays(cout_idx, cin_idx)
+            return a1 * a2
+
+        for j in xrange(3):
+            mask_np[bmask(j, j), yc, xc] = 1 - (mask_type == 'A')
+
+        mask_np[bmask(0, 1), yc, xc] = 0
+        mask_np[bmask(0, 2), yc, xc] = 0
+        mask_np[bmask(1, 2), yc, xc] = 0
+
+        self.mask = torch.from_numpy(mask_np).float()
 
     def forward(self, x):
         self.weight.data *= self.mask
