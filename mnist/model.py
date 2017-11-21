@@ -270,28 +270,28 @@ class RGBPixelCNN(nn.Module):
     def __init__(self):
         super(PixelCNN, self).__init__()
         self.net = nn.Sequential(
-            MaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
             nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
@@ -303,12 +303,26 @@ class RGBPixelCNN(nn.Module):
         return x
 
 
-
 class MaskedConv2d(nn.Conv2d):
+    def __init__(self, mask_type, *args, **kwargs):
+        super(MaskedConv2d, self).__init__(*args, **kwargs)
+        assert mask_type in {'A', 'B'}
+        self.register_buffer('mask', self.weight.data.clone())
+        _, _, kH, kW = self.weight.size()
+        self.mask.fill_(1)
+        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
+        self.mask[:, :, kH // 2 + 1:] = 0
+
+    def forward(self, x):
+        self.weight.data *= self.mask
+        return super(MaskedConv2d, self).forward(x)
+
+
+class RGBMaskedConv2d(nn.Conv2d):
     # Adapted from http://sergeiturukin.com/2017/02/22/pixelcnn.html & 
     # https://github.com/rampage644/wavenet/blob/master/wavenet/models.py
     def __init__(self, mask_type, *args, **kwargs):
-        super(MaskedConv2d, self).__init__(*args, **kwargs)
+        super(RGBMaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
