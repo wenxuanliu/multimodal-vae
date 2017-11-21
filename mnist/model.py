@@ -233,99 +233,46 @@ class VAE(nn.Module):
 
 
 class PixelCNN(nn.Module):
-    def __init__(self):
+    def __init__(self, n_channels=1):
         super(PixelCNN, self).__init__()
         self.net = nn.Sequential(
-            RGBMaskedConv2d('A', 1, 1,  64, 7, 1, 3, bias=False), 
+            MaskedConv2d('A', n_channels, 1,  64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
+            MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
             nn.Conv2d(64, 256, 1),
         )
+        self.n_channels = n_channels
 
     def forward(self, x):
         x = self.net(x)
-        return x
-
-
-class RGBPixelCNN(nn.Module):
-    def __init__(self):
-        super(RGBPixelCNN, self).__init__()
-        self.net = nn.Sequential(
-            RGBMaskedConv2d('A', 3, 3,  64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
-        )
-
-    def forward(self, x):
-        x = self.net(x)
-        x = x.view(-1, 256, 3, 28, 28)  # give it RGB channels
         return x
 
 
 class MaskedConv2d(nn.Conv2d):
-    def __init__(self, mask_type, *args, **kwargs):
-        super(MaskedConv2d, self).__init__(*args, **kwargs)
-        assert mask_type in {'A', 'B'}
-        self.register_buffer('mask', self.weight.data.clone())
-        _, _, kH, kW = self.weight.size()
-        self.mask.fill_(1)
-        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
-        self.mask[:, :, kH // 2 + 1:] = 0
-
-        self.mask_type = mask_type
-
-    def forward(self, x):
-        self.weight.data *= self.mask
-        return super(MaskedConv2d, self).forward(x)
-
-
-class RGBMaskedConv2d(nn.Conv2d):
     # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
     def __init__(self, mask_type, n_channels, *args, **kwargs):
-        super(RGBMaskedConv2d, self).__init__(*args, **kwargs)
+        super(MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
@@ -349,4 +296,5 @@ class RGBMaskedConv2d(nn.Conv2d):
         
     def forward(self, x):
         self.weight.data *= self.mask
-        return super(RGBMaskedConv2d, self).forward(x)
+        return super(MaskedConv2d, self).forward(x)
+

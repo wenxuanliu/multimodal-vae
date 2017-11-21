@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-from model import RGBPixelCNN
+from model import PixelCNN
 from train import AverageMeter
 
 
@@ -33,7 +33,7 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-    model = RGBPixelCNN()
+    model = PixelCNN(3)
     model.load_state_dict(checkpoint['state_dict'])
     
     if use_cuda:
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = RGBPixelCNN()
+    model = PixelCNN(3)
     if args.cuda:
         model.cuda()
 
@@ -113,6 +113,8 @@ if __name__ == "__main__":
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
+            # clip gradients to prevent exploding gradients
+            torch.nn.utils.clip_grad_norm(model.parameters(), 1.)
             optimizer.step()
 
             if batch_idx % args.log_interval == 0:

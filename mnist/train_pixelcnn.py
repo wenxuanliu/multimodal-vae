@@ -31,7 +31,7 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-    model = PixelCNN()
+    model = PixelCNN(1)
     model.load_state_dict(checkpoint['state_dict'])
     
     if use_cuda:
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = PixelCNN()
+    model = PixelCNN(1)
     if args.cuda:
         model.cuda()
 
@@ -98,7 +98,6 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             output = model(data)
-            import pdb; pdb.set_trace()
             loss = F.cross_entropy(output, target)
             loss_meter.update(loss.data[0], len(data))
             
