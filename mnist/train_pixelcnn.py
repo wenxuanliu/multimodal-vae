@@ -91,11 +91,10 @@ if __name__ == "__main__":
         os.makedirs('./results/pixel_cnn')
 
     def preprocess(x):
-        x = np.asarray(x)
-        if args.out_dims < 256:
-            x = torch.from_numpy(quantisize(x, args.out_dims))
-        x = Image.fromarray(x)
         x = transforms.ToTensor()(x)
+        if args.out_dims < 256:
+            x = quantisize(x.numpy(), args.out_dims)
+            x = torch.from_numpy(x) / (args.out_dims - 1)
         if args.rgb:
             x = torch.cat((x, x, x), dim=0)
         return x
@@ -181,7 +180,7 @@ if __name__ == "__main__":
                 for k in xrange(args.data_channels):
 
                     probs = F.softmax(output[:, :, i, j]).data
-                    sample[:, :, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1).
+                    sample[:, :, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 

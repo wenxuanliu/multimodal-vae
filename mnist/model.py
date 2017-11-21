@@ -263,7 +263,7 @@ class PixelCNN(nn.Module):
             nn.Conv2d(64, out_dims * data_channels, 1), 
         )
         self.data_channels = data_channels
-        self.out_dims
+        self.out_dims = out_dims
 
     def forward(self, x):
         x = self.net(x)
