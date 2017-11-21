@@ -236,28 +236,28 @@ class PixelCNN(nn.Module):
     def __init__(self):
         super(PixelCNN, self).__init__()
         self.net = nn.Sequential(
-            MaskedConv2d('A', 1,  64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('A', 1, 1,  64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 1, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
             nn.Conv2d(64, 256, 1),
@@ -272,28 +272,28 @@ class RGBPixelCNN(nn.Module):
     def __init__(self):
         super(RGBPixelCNN, self).__init__()
         self.net = nn.Sequential(
-            RGBMaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('A', 3, 3,  64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            RGBMaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
+            RGBMaskedConv2d('B', 3, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
             nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
@@ -315,15 +315,16 @@ class MaskedConv2d(nn.Conv2d):
         self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
         self.mask[:, :, kH // 2 + 1:] = 0
 
+        self.mask_type = mask_type
+
     def forward(self, x):
         self.weight.data *= self.mask
         return super(MaskedConv2d, self).forward(x)
 
 
 class RGBMaskedConv2d(nn.Conv2d):
-    # Adapted from http://sergeiturukin.com/2017/02/22/pixelcnn.html & 
-    # https://github.com/rampage644/wavenet/blob/master/wavenet/models.py
-    def __init__(self, mask_type, *args, **kwargs):
+    # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
+    def __init__(self, mask_type, n_channels, *args, **kwargs):
         super(RGBMaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
@@ -333,30 +334,19 @@ class RGBMaskedConv2d(nn.Conv2d):
         # initialize at all 1s
         self.mask.fill_(1)
 
-        # create the mask in NumPy because we get so much better
-        # indexing/slicing. We don't need this part to be differentiable anyway.
-        mask_np = self.mask.numpy()
+        for i in xrange(kh):
+            for j in xrange(kw):
+                if (j > xc) or (j == xc and i > yc):
+                    self.mask[:, :, j, i] = 0.
 
-        # context masking: subsequent pixels won't have access to next pixels
-        mask_np[:, :, yc+1:, :] = 0
-        mask_np[:, :, yc:, xc+1:] = 0
+        for i in xrange(n_channels):
+            for j in xrange(n_channels):
+                if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
+                    self.mask[j::n_channels, i::n_channels, yc, xc] = 0
 
-        def bmask(i_out, i_in):
-            # same pixel masking - pixel won't access next color (conv filter dim)
-            cout_idx = np.expand_dims(np.arange(cout) % 3 == i_out, 1)
-            cin_idx = np.expand_dims(np.arange(cin) % 3 == i_in, 0)
-            a1, a2 = np.broadcast_arrays(cout_idx, cin_idx)
-            return a1 * a2
-
-        for j in xrange(3):
-            mask_np[bmask(j, j), yc, xc] = 1 - (mask_type == 'A')
-
-        mask_np[bmask(0, 1), yc, xc] = 0
-        mask_np[bmask(0, 2), yc, xc] = 0
-        mask_np[bmask(1, 2), yc, xc] = 0
-
-        self.mask = torch.from_numpy(mask_np).float()
-
+        self.mask_type = mask_type
+        self.n_channels = n_channels
+        
     def forward(self, x):
         self.weight.data *= self.mask
-        return super(MaskedConv2d, self).forward(x)
+        return super(RGBMaskedConv2d, self).forward(x)
