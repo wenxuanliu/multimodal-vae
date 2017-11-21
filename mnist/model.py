@@ -267,9 +267,6 @@ class PixelCNN(nn.Module):
     def forward(self, x):
         data_channels = self.data_channels
         x = self.net(x)
-        n, c, h, w = x.size()
-        x = x.view(n, c // data_channels, data_channels, h, w)
-        x = log_softmax_by_dim(x, dim=1)
         return x
 
 
@@ -291,7 +288,6 @@ class GatedPixelCNN(nn.Module):
 
         batch_size, _, height, width = h.size()
         h = h.view(batch_size, 256, data_channels, height, width)
-        h = log_softmax_by_dim(h, dim=1)
         return h
 
 
