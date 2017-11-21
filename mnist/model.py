@@ -233,7 +233,7 @@ class VAE(nn.Module):
 
 
 class PixelCNN(nn.Module):
-    def __init__(self, data_channels=1):
+    def __init__(self, data_channels=1, out_dims=256):
         super(PixelCNN, self).__init__()
         self.net = nn.Sequential(
             MaskedConv2d('A', data_channels, data_channels, 64, 7, 1, 3, bias=False), 
@@ -260,25 +260,29 @@ class PixelCNN(nn.Module):
             MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            nn.Conv2d(64, 256 * data_channels, 1), 
+            nn.Conv2d(64, out_dims * data_channels, 1), 
         )
         self.data_channels = data_channels
+        self.out_dims
 
     def forward(self, x):
-        data_channels = self.data_channels
         x = self.net(x)
+        batch_size, _, height, width = x.size()
+        x = x.view(batch_size, self.out_dims, self.data_channels, 
+                   height, width)
         return x
 
 
 class GatedPixelCNN(nn.Module):
     """Improved PixelCNN with blind spot and gated blocks."""
-    def __init__(self, data_channels=1):
+    def __init__(self, data_channels=1, out_dims=256):
         super(GatedPixelCNN, self).__init__()
-        self.conv1 = ResidualBlock(data_channels, 64, 7, 'A')
-        self.blocks = ResidualBlockList(5, 64, 64, 3, 'B')
-        self.conv2 = MaskedConv2d(64, 64, 1)
-        self.conv4 = MaskedConv2d(64, 256 * data_channels, 1)
+        self.conv1 = ResidualBlock(data_channels, 128, 7, 'A')
+        self.blocks = ResidualBlockList(5, 128, 128, 3, 'B')
+        self.conv2 = MaskedConv2d(128, 16, 1)
+        self.conv4 = MaskedConv2d(16, out_dims * data_channels, 1)
         self.data_channels = data_channels
+        self.out_dims = out_dims
 
     def forward(self, x):
         x, h = self.conv1(x, x)
@@ -287,7 +291,8 @@ class GatedPixelCNN(nn.Module):
         h = self.conv4(F.relu(h))
 
         batch_size, _, height, width = h.size()
-        h = h.view(batch_size, 256, data_channels, height, width)
+        h = h.view(batch_size, self.out_dims, self.data_channels, 
+                   height, width)
         return h
 
 

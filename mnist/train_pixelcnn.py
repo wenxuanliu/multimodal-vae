@@ -5,6 +5,8 @@ from __future__ import absolute_import
 import os
 import sys
 import shutil
+import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -16,6 +18,15 @@ from torchvision.utils import save_image
 
 from model import PixelCNN, GatedPixelCNN
 from train import AverageMeter
+
+
+def quantisize(images, levels):
+    """Convert images to N levels from 0 to N.
+
+    :param images: numpy array
+    :return: numpy array
+    """
+    return (np.digitize(images, np.arange(levels) / levels) - 1).astype('i')
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -32,9 +43,11 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
     if checkpoint['gated']:
-        model = GatedPixelCNN(checkpoint['data_channels'])
+        model = GatedPixelCNN(checkpoint['data_channels'], 
+                              checkpoint['out_dims'])
     else:
-        model = PixelCNN(checkpoint['data_channels'])
+        model = PixelCNN(checkpoint['data_channels'],
+                         checkpoint['out_dims'])
     model.load_state_dict(checkpoint['state_dict'])
     if use_cuda:
         model.cuda()
@@ -45,22 +58,25 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--rgb', action='store_true', default=False, 
-                        help='if True, convert MNIST to RGB form.')
+                        help='if True, convert MNIST to RGB form (default: False)')
     parser.add_argument('--gated', action='store_true', default=False,
-                        help='if True, use GatedPixelCNN instead of PixelCNN')
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=20, metavar='N',
-                        help='number of epochs to train (default: 20)')
+                        help='if True, use GatedPixelCNN instead of PixelCNN (default: False)')
+    parser.add_argument('--out_dims', type=int, default=8, metavar='N',
+                        help='2|4|8|16|...|256 (default: 8)')
+    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                        help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
+                        help='how many batches to wait before logging training status (default: 10)')
     parser.add_argument('--cuda', action='store_true', default=False,
-                        help='enables CUDA training')
+                        help='enables CUDA training (default: False)')
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
     args.data_channels = 3 if args.rgb else 1
+    assert args.out_dims <= 256 and args.out_dims > 1
 
     if not os.path.isdir('./trained_models'):
         os.makedirs('./trained_models')
@@ -75,11 +91,13 @@ if __name__ == "__main__":
         os.makedirs('./results/pixel_cnn')
 
     def preprocess(x):
+        x = np.asarray(x)
+        if args.out_dims < 256:
+            x = torch.from_numpy(quantisize(x, args.out_dims))
+        x = Image.fromarray(x)
         x = transforms.ToTensor()(x)
         if args.rgb:
-            x = torch.cat((x, x, x), dim=0) 
-        else:
-            x = x.unsqueeze(0)
+            x = torch.cat((x, x, x), dim=0)
         return x
 
     # create loaders for MNIST
@@ -93,12 +111,12 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = GatedPixelCNN(args.data_channels) \
-        if args.gated else PixelCNN(args.data_channels)
+    model = GatedPixelCNN(args.data_channels, args.out_dims) \
+        if args.gated else PixelCNN(args.data_channels, args.out_dims)
     if args.cuda:
         model.cuda()
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
 
     def train(epoch):
@@ -109,7 +127,7 @@ if __name__ == "__main__":
             if args.cuda:
                 data = data.cuda()
             data = Variable(data)
-            target = Variable((data.data[:, 0] * 255).long())
+            target = Variable((data.data * (args.out_dims - 1)).long())
 
             optimizer.zero_grad()
             output = model(data)
@@ -139,7 +157,7 @@ if __name__ == "__main__":
             if args.cuda:
                 data = data.cuda()
             data = Variable(data)
-            target = Variable((data.data[:, 0] * 255).long())
+            target = Variable((data.data * (args.out_dims - 1)).long())
                 
             output = model(data)
             loss = 0
@@ -163,7 +181,7 @@ if __name__ == "__main__":
                 for k in xrange(args.data_channels):
 
                     probs = F.softmax(output[:, :, i, j]).data
-                    sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
+                    sample[:, :, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1).
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 
@@ -181,6 +199,7 @@ if __name__ == "__main__":
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
             'data_channels': args.data_channels,
+            'out_dims': args.args.out_dims,
             'gated': args.gated,
         }, is_best, folder='./trained_models/pixel_cnn')     
 
