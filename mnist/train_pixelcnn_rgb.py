@@ -109,7 +109,7 @@ if __name__ == "__main__":
             
             loss = 0
             for i in xrange(3):  # loop through each RGB dimension
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
+                loss += F.nll_loss(output[:, :, i, :, :], target[:, i, :, :])
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             
             loss = 0
             for i in xrange(3):  # loop through dimensions for each RGB channel
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
+                loss += F.nll_loss(output[:, :, i, :, :], target[:, i, :, :]) 
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -157,7 +157,7 @@ if __name__ == "__main__":
                 output = model(Variable(sample, volatile=True))
                 
                 for k in xrange(3):
-                    probs = F.softmax(output[:, :, k, i, j]).data
+                    probs = torch.exp(output[:, :, k, i, j]).data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / 255.
 
         save_image(sample, './results/rgb_pixel_cnn/sample_{}.png'.format(epoch)) 

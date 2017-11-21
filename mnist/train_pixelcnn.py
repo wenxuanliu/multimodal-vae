@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             output = model(data)
-            loss = F.cross_entropy(output, target)
+            loss = F.nll_loss(output.squeeze(2), target)
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -123,7 +123,7 @@ if __name__ == "__main__":
             target = Variable((data.data[:, 0] * 255).long())
                 
             output = model(data)
-            loss = F.cross_entropy(output, target)
+            loss = F.nll_loss(output.squeeze(2), target)
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -138,8 +138,9 @@ if __name__ == "__main__":
 
         for i in xrange(28):
             for j in xrange(28):
-                output = model(Variable(sample, volatile=True))
-                probs = F.softmax(output[:, :, i, j]).data
+                output = model(Variable(sample, volatile=True)).squeeze(2)
+                # probs = F.softmax(output[:, :, i, j]).data
+                probs = torch.exp(output[:, :, i, j]).data
                 sample[:, :, i, j] = torch.multinomial(probs, 1).float() / 255.
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 

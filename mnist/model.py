@@ -236,7 +236,7 @@ class PixelCNN(nn.Module):
     def __init__(self, n_channels=1):
         super(PixelCNN, self).__init__()
         self.net = nn.Sequential(
-            MaskedConv2d('A', n_channels, 1,  64, 7, 1, 3, bias=False), 
+            MaskedConv2d('A', n_channels, n_channels, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
             MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
@@ -260,12 +260,16 @@ class PixelCNN(nn.Module):
             MaskedConv2d('B', n_channels, 64, 64, 7, 1, 3, bias=False), 
             nn.BatchNorm2d(64), 
             nn.ReLU(True),
-            nn.Conv2d(64, 256, 1),
+            nn.Conv2d(64, 256 * n_channels, 1), 
         )
         self.n_channels = n_channels
 
     def forward(self, x):
+        n_channels = self.n_channels
         x = self.net(x)
+        n, c, h, w = x.size()
+        x = x.view(n, c // n_channels, n_channels, h, w)
+        x = log_softmax_by_dim(x, dim=1)
         return x
 
 
@@ -297,4 +301,16 @@ class MaskedConv2d(nn.Conv2d):
     def forward(self, x):
         self.weight.data *= self.mask
         return super(MaskedConv2d, self).forward(x)
+
+
+def log_softmax_by_dim(input, dim=1):
+    input_size = input.size()
+    trans_input = input.transpose(dim, len(input_size) - 1)
+    trans_size = trans_input.size()
+    input_2d = trans_input.contiguous().view(-1, trans_size[-1])
+    soft_max_2d = F.log_softmax(input_2d)
+    soft_max_nd = soft_max_2d.view(*trans_size)
+    return soft_max_nd.transpose(dim, len(input_size)-1)
+
+
 
