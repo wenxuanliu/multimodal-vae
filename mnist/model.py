@@ -357,7 +357,7 @@ class MaskedConv2d(nn.Conv2d):
 
         for i in xrange(kw):
             for j in xrange(kh):
-                if (j > xc) or (j == xc and i > yc):
+                if (j > yc) or (j == yc and i > xc):
                     self.mask[:, :, j, i] = 0.
 
         for i in xrange(data_channels):
