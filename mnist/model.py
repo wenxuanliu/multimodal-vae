@@ -279,8 +279,8 @@ class GatedPixelCNN(nn.Module):
         super(GatedPixelCNN, self).__init__()
         self.conv1 = ResidualBlock(data_channels, 128, 7, 'A')
         self.blocks = ResidualBlockList(5, 128, 128, 3, 'B')
-        self.conv2 = MaskedConv2d(128, 16, 1)
-        self.conv4 = MaskedConv2d(16, out_dims * data_channels, 1)
+        self.conv2 = MaskedConv2d('B', data_channels, 128, 16, 1)
+        self.conv4 = MaskedConv2d('B', data_channels, 16, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
 
@@ -299,7 +299,8 @@ class GatedPixelCNN(nn.Module):
 class ResidualBlockList(nn.Module):
     def __init__(self, block_num, *args, **kwargs):
         super(ResidualBlockList, self).__init__()
-        self.blocks = [ResidualBlock(*args, **kwargs) for i in range(block_num)]
+        blocks = [ResidualBlock(*args, **kwargs) for i in xrange(block_num)]
+        self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x, h):
         for block in self.blocks:
@@ -319,8 +320,8 @@ class ResidualBlock(nn.Module):
         self.vertical_conv_s = CroppedConv2d(in_channels, out_channels, 
                                              kernel_size=(kernel_size // 2 + 1, kernel_size),
                                              padding=(kernel_size // 2 + 1, kernel_size // 2))
-        self.x_to_h_conv_t = Conv2d(out_channels, out_channels, 1)
-        self.x_to_h_conv_s = Conv2d(out_channels, out_channels, 1)
+        self.x_to_h_conv_t = nn.Conv2d(out_channels, out_channels, 1)
+        self.x_to_h_conv_s = nn.Conv2d(out_channels, out_channels, 1)
         self.horizontal_conv_t = MaskedConv2d(mask_type, data_channels, in_channels, out_channels, 
                                               kernel_size=(1, kernel_size), padding=(0, kernel_size // 2))
         self.horizontal_conv_s = MaskedConv2d(mask_type, data_channels, in_channels, out_channels, 
@@ -350,12 +351,12 @@ class MaskedConv2d(nn.Conv2d):
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
         yc, xc = kh // 2, kw // 2
-        
+       
         # initialize at all 1s
         self.mask.fill_(1)
 
-        for i in xrange(kh):
-            for j in xrange(kw):
+        for i in xrange(kw):
+            for j in xrange(kh):
                 if (j > xc) or (j == xc and i > yc):
                     self.mask[:, :, j, i] = 0.
 

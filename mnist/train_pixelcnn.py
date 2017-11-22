@@ -93,7 +93,7 @@ if __name__ == "__main__":
     def preprocess(x):
         x = transforms.ToTensor()(x)
         if args.out_dims < 256:
-            x = quantisize(x.numpy(), args.out_dims)
+            x = quantisize(x.numpy(), args.out_dims).astype('f')
             x = torch.from_numpy(x) / (args.out_dims - 1)
         if args.rgb:
             x = torch.cat((x, x, x), dim=0)
@@ -123,10 +123,12 @@ if __name__ == "__main__":
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(train_loader):
-            if args.cuda:
-                data = data.cuda()
             data = Variable(data)
             target = Variable((data.data * (args.out_dims - 1)).long())
+            
+            if args.cuda:
+                data = data.cuda()
+                target = target.cuda()
 
             optimizer.zero_grad()
             output = model(data)
@@ -153,11 +155,13 @@ if __name__ == "__main__":
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(test_loader):
-            if args.cuda:
-                data = data.cuda()
             data = Variable(data)
             target = Variable((data.data * (args.out_dims - 1)).long())
-                
+            
+            if args.cuda:
+                data = data.cuda()
+                target = target.cuda()
+
             output = model(data)
             loss = 0
             for i in xrange(args.data_channels):
@@ -198,7 +202,7 @@ if __name__ == "__main__":
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
             'data_channels': args.data_channels,
-            'out_dims': args.args.out_dims,
+            'out_dims': args.out_dims,
             'gated': args.gated,
         }, is_best, folder='./trained_models/pixel_cnn')     
 
