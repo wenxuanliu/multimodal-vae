@@ -182,9 +182,8 @@ if __name__ == "__main__":
             for j in xrange(28):
                 output = model(Variable(sample, volatile=True))
                 for k in xrange(args.data_channels):
-
-                    probs = F.softmax(output[:, :, i, j]).data
-                    sample[:, :, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
+                    probs = F.softmax(output[:, :, k, i, j]).data
+                    sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 
