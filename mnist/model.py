@@ -355,16 +355,30 @@ class MaskedConv2d(nn.Conv2d):
         # initialize at all 1s
         self.mask.fill_(1)
 
-        for i in xrange(kw):
-            for j in xrange(kh):
-                if (j > yc) or (j == yc and i > xc):
-                    self.mask[:, :, j, i] = 0.
+        # for i in xrange(kw):
+        #     for j in xrange(kh):
+        #         if (j > yc) or (j == yc and i > xc):
+        #             self.mask[:, :, j, i] = 0.
 
-        for i in xrange(data_channels):
-            for j in xrange(data_channels):
-                if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
-                    self.mask[j::data_channels, i::data_channels, yc, xc] = 0
+        mask_np = self.mask.numpy()
+        mask_np[:, :, yc+1, :] = 0.
+        mask_np[:, :, yc, xc+1:] = 0.
 
+        def bmask(i_out, i_in):
+            cout_idx = np.expand_dims(np.arange(Cout) % data_channels == i_out, 1)
+            cin_idx = np.expand_dims(np.arange(Cin) % data_channels == i_in, 0)
+            a1, a2 = np.broadcast_arrays(cout_idx, cin_idx)
+            return a1 * a2
+
+        for j in range(data_channels):
+             mask_np[bmask(j, j), yc, xc] = 0. if mask_type == 'A' else 1.
+
+        # for i in xrange(data_channels):
+        #     for j in xrange(data_channels):
+        #         if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
+        #             self.mask[j::data_channels, i::data_channels, yc, xc] = 0
+
+        self.mask = torch.from_numpy(mask_np)
         self.mask_type = mask_type
         self.data_channels = data_channels
         
