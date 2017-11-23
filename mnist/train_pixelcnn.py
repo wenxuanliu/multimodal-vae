@@ -180,8 +180,8 @@ if __name__ == "__main__":
 
         for i in xrange(28):
             for j in xrange(28):
-                output = model(Variable(sample, volatile=True))
                 for k in xrange(args.data_channels):
+                    output = model(Variable(sample, volatile=True))
                     probs = F.softmax(output[:, :, k, i, j]).data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
