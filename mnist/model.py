@@ -353,10 +353,10 @@ class ResidualBlock(nn.Module):
         return x + h
 
 
-class MaskedConv2d_V1(nn.Conv2d):
+class _MaskedConv2d(nn.Conv2d):
     # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
     def __init__(self, mask_type, data_channels, *args, **kwargs):
-        super(MaskedConv2d_V1, self).__init__(*args, **kwargs)
+        super(_MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
@@ -365,36 +365,22 @@ class MaskedConv2d_V1(nn.Conv2d):
         # initialize at all 1s
         self.mask.fill_(1)
 
-        # for i in xrange(kw):
-        #     for j in xrange(kh):
-        #         if (j > yc) or (j == yc and i > xc):
-        #             self.mask[:, :, j, i] = 0.
+        for i in xrange(kw):
+            for j in xrange(kh):
+                if (j > yc) or (j == yc and i > xc):
+                    self.mask[:, :, j, i] = 0.
 
-        mask_np = self.mask.numpy()
-        mask_np[:, :, yc+1, :] = 0.
-        mask_np[:, :, yc, xc+1:] = 0.
+        for i in xrange(data_channels):
+            for j in xrange(data_channels):
+                if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
+                    self.mask[j::data_channels, i::data_channels, yc, xc] = 0
 
-        def bmask(i_out, i_in):
-            cout_idx = np.expand_dims(np.arange(Cout) % data_channels == i_out, 1)
-            cin_idx = np.expand_dims(np.arange(Cin) % data_channels == i_in, 0)
-            a1, a2 = np.broadcast_arrays(cout_idx, cin_idx)
-            return a1 * a2
-
-        for j in range(data_channels):
-             mask_np[bmask(j, j), yc, xc] = 0. if mask_type == 'A' else 1.
-
-        # for i in xrange(data_channels):
-        #     for j in xrange(data_channels):
-        #         if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
-        #             self.mask[j::data_channels, i::data_channels, yc, xc] = 0
-
-        self.mask = torch.from_numpy(mask_np)
         self.mask_type = mask_type
         self.data_channels = data_channels
         
     def forward(self, x):
         self.weight.data *= self.mask
-        return super(MaskedConv2d_V1, self).forward(x)
+        return super(_MaskedConv2d, self).forward(x)
 
 
 class MaskedConv2d(nn.Conv2d):
@@ -446,24 +432,23 @@ class CroppedConv2d(nn.Conv2d):
         return x[:, :, :h_crop, :w_crop]
 
 
-def log_softmax_by_dim(input, dim=1):
+def softmax_by_dim(input, dim=1):
     input_size = input.size()
-    trans_input = input.transpose(dim, len(input_size) - 1)
+    trans_input = input.permute(0, 2, 3, 4, 1)
     trans_size = trans_input.size()
     input_2d = trans_input.contiguous().view(-1, trans_size[-1])
-    soft_max_2d = F.log_softmax(input_2d)
+    soft_max_2d = F.softmax(input_2d)
     soft_max_nd = soft_max_2d.view(*trans_size)
-    return soft_max_nd.transpose(dim, len(input_size)-1)
+    return soft_max_nd.permute(0, 4, 1, 2, 3)
 
 
 def cross_entropy_by_dim(input, output, dim=1):
     input_size = input.size()
     output_size = output.size()
 
-    trans_input = input.transpose(dim, len(input_size) - 1)
+    trans_input = input.permute(0, 2, 3, 4, 1)
     trans_input_size = trans_input.size()
 
     input_2d = trans_input.contiguous().view(-1, trans_input_size[-1])
     output_2d = output.contiguous().view(-1)
     return F.cross_entropy(input_2d, output_2d)
-

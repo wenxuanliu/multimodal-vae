@@ -17,7 +17,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from model import PixelCNN, GatedPixelCNN
-from model import cross_entropy_by_dim, log_softmax_by_dim
+from model import cross_entropy_by_dim, softmax_by_dim
 from train import AverageMeter
 
 
@@ -179,7 +179,7 @@ if __name__ == "__main__":
             for j in xrange(28):
                 for k in xrange(args.data_channels):
                     output = model(Variable(sample, volatile=True))
-                    output = torch.exp(log_softmax_by_dim(output, dim=1))
+                    output = softmax_by_dim(output, dim=1)
                     probs = output[:, :, k, i, j].data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
