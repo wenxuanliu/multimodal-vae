@@ -454,3 +454,16 @@ def log_softmax_by_dim(input, dim=1):
     soft_max_2d = F.log_softmax(input_2d)
     soft_max_nd = soft_max_2d.view(*trans_size)
     return soft_max_nd.transpose(dim, len(input_size)-1)
+
+
+def cross_entropy_by_dim(input, output, dim=1):
+    input_size = input.size()
+    output_size = output.size()
+
+    trans_input = input.transpose(dim, len(input_size) - 1)
+    trans_input_size = trans_input.size()
+
+    input_2d = trans_input.contiguous().view(-1, trans_input_size[-1])
+    output_2d = output.contiguous().view(-1)
+    return F.cross_entropy(input_2d, output_2d)
+

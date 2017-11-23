@@ -17,6 +17,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from model import PixelCNN, GatedPixelCNN
+from model import cross_entropy_by_dim, log_softmax_by_dim
 from train import AverageMeter
 
 
@@ -132,9 +133,7 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             output = model(data)
-            loss = 0
-            for i in xrange(args.data_channels):
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
+            loss = cross_entropy_by_dim(output, target)
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -163,9 +162,7 @@ if __name__ == "__main__":
                 target = target.cuda()
 
             output = model(data)
-            loss = 0
-            for i in xrange(args.data_channels):
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
+            loss = cross_entropy_by_dim(output, target)
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -182,7 +179,8 @@ if __name__ == "__main__":
             for j in xrange(28):
                 for k in xrange(args.data_channels):
                     output = model(Variable(sample, volatile=True))
-                    probs = F.softmax(output[:, :, k, i, j]).data
+                    output = torch.exp(log_softmax_by_dim(output, dim=1))
+                    probs = output[:, :, k, i, j].data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
