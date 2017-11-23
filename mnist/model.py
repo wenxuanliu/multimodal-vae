@@ -353,10 +353,10 @@ class ResidualBlock(nn.Module):
         return x + h
 
 
-class _MaskedConv2d(nn.Conv2d):
+class MaskedConv2d(nn.Conv2d):
     # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
     def __init__(self, mask_type, data_channels, *args, **kwargs):
-        super(_MaskedConv2d, self).__init__(*args, **kwargs)
+        super(MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
@@ -380,12 +380,12 @@ class _MaskedConv2d(nn.Conv2d):
         
     def forward(self, x):
         self.weight.data *= self.mask
-        return super(_MaskedConv2d, self).forward(x)
+        return super(MaskedConv2d, self).forward(x)
 
 
-class MaskedConv2d(nn.Conv2d):
+class _MaskedConv2d(nn.Conv2d):
     def __init__(self, mask_type, data_channels, *args, **kwargs):
-        super(MaskedConv2d, self).__init__(*args, **kwargs)
+        super(_MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
         cout, cin, kh, kw = self.weight.size()
@@ -416,7 +416,7 @@ class MaskedConv2d(nn.Conv2d):
 
     def forward(self, x):
         self.weight.data *= self.mask
-        return super(MaskedConv2d, self).forward(x)
+        return super(_MaskedConv2d, self).forward(x)
 
 
 class CroppedConv2d(nn.Conv2d):
