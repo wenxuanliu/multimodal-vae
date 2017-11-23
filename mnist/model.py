@@ -432,14 +432,14 @@ class CroppedConv2d(nn.Conv2d):
         return x[:, :, :h_crop, :w_crop]
 
 
-def softmax_by_dim(input, dim=1):
+def log_softmax_by_dim(input, dim=1):
     input_size = input.size()
-    trans_input = input.permute(0, 2, 3, 4, 1)
+    trans_input = input.transpose(dim, len(input_size) - 1)
     trans_size = trans_input.size()
     input_2d = trans_input.contiguous().view(-1, trans_size[-1])
-    soft_max_2d = F.softmax(input_2d)
+    soft_max_2d = F.log_softmax(input_2d)
     soft_max_nd = soft_max_2d.view(*trans_size)
-    return soft_max_nd.permute(0, 4, 1, 2, 3)
+    return soft_max_nd.transpose(dim, len(input_size) - 1)
 
 
 def cross_entropy_by_dim(input, output, dim=1):
