@@ -56,6 +56,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--out_dims', type=int, default=256, metavar='N',
                         help='2|4|8|16|...|256 (default: 256)')
+    parser.add_argument('--image_size', type=int, default=32, metavar='N',
+                        help='size to reshape image to and generate (default: 32)')
     parser.add_argument('--batch_size', type=int, default=32, metavar='N',
                         help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
@@ -64,6 +66,8 @@ if __name__ == "__main__":
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status (default: 10)')
+    parser.add_argument('--cifar', action='store_true', default=False,
+                        help='train on CIFAR if set (default: False)')
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training (default: False)')
     args = parser.parse_args()
@@ -83,8 +87,8 @@ if __name__ == "__main__":
         os.makedirs('./results/pixel_cnn')
 
     def preprocess(x):
-        transform = transforms.Compose([transforms.Scale(32),
-                                        transforms.CenterCrop(32),
+        transform = transforms.Compose([transforms.Scale(args.image_size),
+                                        transforms.CenterCrop(args.image_size),
                                         transforms.ToTensor()])
         x = transform(x)
         if args.out_dims < 256:
@@ -92,17 +96,27 @@ if __name__ == "__main__":
             x = torch.from_numpy(x) / (args.out_dims - 1)
         return x
 
-    # create loaders for COCO
-    train_loader = torch.utils.data.DataLoader(
-        datasets.CocoCaptions('./data/coco/train2014', 
-                              './data/coco/annotations/captions_train2014.json',
-                              transform=preprocess),
-        batch_size=args.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(
-        datasets.CocoCaptions('./data/coco/val2014', 
-                              './data/coco/annotations/captions_val2014.json',
-                              transform=preprocess),
-        batch_size=args.batch_size, shuffle=True)
+    if args.cifar:
+        train_loader = torch.utils.data.DataLoader(
+            datasets.CIFAR10(root='./data/cifar', train=True,
+                             download=True, transform=preprocess),
+            batch_size=args.batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(
+            datasets.CIFAR10(root='./data/cifar', train=False,
+                             download=True, transform=preprocess),
+            batch_size=args.batch_size, shuffle=True)
+    else:
+        # create loaders for COCO
+        train_loader = torch.utils.data.DataLoader(
+            datasets.CocoCaptions('./data/coco/train2014', 
+                                  './data/coco/annotations/captions_train2014.json',
+                                  transform=preprocess),
+            batch_size=args.batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(
+            datasets.CocoCaptions('./data/coco/val2014', 
+                                  './data/coco/annotations/captions_val2014.json',
+                                  transform=preprocess),
+            batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
     model = GatedPixelCNN(n_blocks=15, data_channels=3, out_dims=args.out_dims)
@@ -163,13 +177,13 @@ if __name__ == "__main__":
 
 
     def generate(epoch):
-        sample = torch.zeros(64, 3, 32, 32)
+        sample = torch.zeros(64, 3, args.image_size, args.image_size)
         if args.cuda:
             sample = sample.cuda()
         model.eval() 
 
-        for i in xrange(32):
-            for j in xrange(32):
+        for i in xrange(args.image_size):
+            for j in xrange(args.image_size):
                 for k in xrange(3):
                     output = model(Variable(sample, volatile=True))
                     output = torch.exp(log_softmax_by_dim(output, dim=1))
