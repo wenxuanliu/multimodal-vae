@@ -47,7 +47,7 @@ def load_checkpoint(file_path, use_cuda=False):
         model = GatedPixelCNN(checkpoint['data_channels'], 
                               checkpoint['out_dims'])
     else:
-        model = PixelCNN(checkpoint['data_channels'],
+        model = PixelCNNv2(checkpoint['data_channels'],
                          checkpoint['out_dims'])
     model.load_state_dict(checkpoint['state_dict'])
     if use_cuda:
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     # load multimodal VAE
     model = GatedPixelCNN(args.data_channels, args.out_dims) \
-        if args.gated else PixelCNN(args.data_channels, args.out_dims)
+        if args.gated else PixelCNNv2(args.data_channels, args.out_dims)
     if args.cuda:
         model.cuda()
 
