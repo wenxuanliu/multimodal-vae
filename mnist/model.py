@@ -412,39 +412,28 @@ def cross_entropy_by_dim(input, output, dim=1):
 
 
 class PixelCNNv2(nn.Module):
-    def __init__(self, data_channels=1, out_dims=256):
+    def __init__(self, n_groups=7, data_channels=1, out_dims=256):
         super(PixelCNNv2, self).__init__()
-        self.net = nn.Sequential(
-            MaskedConv2d('A', data_channels, data_channels, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
+        self.mask_A = nn.Sequential(
+            MaskedConv2d('A', data_channels, data_channels, 128, 7, 1, 3, bias=False), 
+            nn.BatchNorm2d(128), 
             nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', data_channels, 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            nn.Conv2d(64, out_dims * data_channels, 1),
         )
+        self.mask_B = []
+        for i in xrange(n_groups):
+            self.mask_B += [
+                MaskedConv2d('B', data_channels, 128, 128, 7, 1, 3, bias=False), 
+                nn.BatchNorm2d(128), 
+                nn.ReLU(True),
+            ]
+        self.mask_B = nn.Sequential(*mask_B)
+        self.net = nn.Conv2d(128, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
 
     def forward(self, x):
+        x = self.mask_A(x)
+        x = self.mask_B(x)
         x = self.net(x)
         batch_size, _, height, width = x.size()
         x = x.view(batch_size, self.out_dims, self.data_channels, height, width)
