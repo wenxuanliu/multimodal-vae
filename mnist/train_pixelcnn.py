@@ -181,9 +181,9 @@ if __name__ == "__main__":
             sample = sample.cuda()
         model.eval() 
 
-        for k in xrange(args.data_channels):
-            for i in xrange(28):
-                for j in xrange(28):
+        for i in xrange(28):
+            for j in xrange(28):
+                for k in xrange(args.data_channels):
                     output = model(Variable(sample, volatile=True))
                     output = torch.exp(log_softmax_by_dim(output, dim=1))
                     probs = output[:, :, k, i, j].data
