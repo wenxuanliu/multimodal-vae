@@ -5,6 +5,8 @@ from __future__ import absolute_import
 import os
 import sys
 import shutil
+import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn as nn
@@ -14,8 +16,18 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-from model import PixelCNN
+from model import GatedPixelCNN
+from model import cross_entropy_by_dim, log_softmax_by_dim
 from train import AverageMeter
+
+
+def quantisize(images, levels):
+    """Convert images to N levels from 0 to N.
+
+    :param images: numpy array
+    :return: numpy array
+    """
+    return (np.digitize(images, np.arange(levels) / levels) - 1).astype('i')
 
 
 def save_checkpoint(state, is_best, folder='./', filename='checkpoint.pth.tar'):
@@ -31,30 +43,33 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-    model = PixelCNN()
+    model = GatedPixelCNN(n_groups=checkpoint['n_groups'],
+                          data_channels=checkpoint['data_channels'],
+                          out_dims=checkpoint['out_dims'])
     model.load_state_dict(checkpoint['state_dict'])
-    
     if use_cuda:
         model.cuda()
-
     return model
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
-                        help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=20, metavar='N',
-                        help='number of epochs to train (default: 20)')
+    parser.add_argument('--out_dims', type=int, default=256, metavar='N',
+                        help='2|4|8|16|...|256 (default: 256)')
+    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                        help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 1e-3)')
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
+                        help='how many batches to wait before logging training status (default: 10)')
     parser.add_argument('--cuda', action='store_true', default=False,
-                        help='enables CUDA training')
+                        help='enables CUDA training (default: False)')
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
+    assert args.out_dims <= 256 and args.out_dims > 1
 
     if not os.path.isdir('./trained_models'):
         os.makedirs('./trained_models')
@@ -68,13 +83,13 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/pixel_cnn'):
         os.makedirs('./results/pixel_cnn')
 
-    # create transformers for preprocessing images
-    transform_train = transforms.Compose([transforms.Scale(64),
-                                          transforms.CenterCrop(64),
-                                          transforms.ToTensor()])
-    transform_test = transforms.Compose([transforms.Scale(64),
-                                         transforms.CenterCrop(64),
-                                         transforms.ToTensor()])
+    def preprocess(x):
+        x = transforms.ToTensor()(x)
+        if args.out_dims < 256:
+            x = quantisize(x.numpy(), args.out_dims).astype('f')
+            x = torch.from_numpy(x) / (args.out_dims - 1)
+        return x
+
     # create loaders for COCO
     train_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/train2014', 
@@ -88,11 +103,12 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = PixelCNN()
+    model = GatedPixelCNN(n_blocks=15, data_channels=args.data_channels, 
+                          out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
 
     def train(epoch):
@@ -100,22 +116,21 @@ if __name__ == "__main__":
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(train_loader):
+            data = Variable(data)
+            target = Variable((data.data * (args.out_dims - 1)).long())
+            
             if args.cuda:
                 data = data.cuda()
-            n_data = len(data)
-
-            data = Variable(data)
-            target = Variable((data.data * 255).long())
+                target = target.cuda()
 
             optimizer.zero_grad()
             output = model(data)
-            
-            loss = 0
-            for i in xrange(3):  # loop through each RGB dimension
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
+            loss = cross_entropy_by_dim(output, target)
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
+            # clip gradients to prevent exploding gradients
+            torch.nn.utils.clip_grad_norm(model.parameters(), 1.)
             optimizer.step()
 
             if batch_idx % args.log_interval == 0:
@@ -131,16 +146,15 @@ if __name__ == "__main__":
         loss_meter = AverageMeter()
 
         for batch_idx, (data, _) in enumerate(test_loader):
+            data = Variable(data)
+            target = Variable((data.data * (args.out_dims - 1)).long())
+            
             if args.cuda:
                 data = data.cuda()
-            n_data = len(data)
-            data = Variable(data)
-            target = Variable((data.data * 255).long())
+                target = target.cuda()
+
             output = model(data)
-            
-            loss = 0
-            for i in xrange(3):  # loop through dimensions for each RGB channel
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
+            loss = cross_entropy_by_dim(output, target)
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -148,18 +162,18 @@ if __name__ == "__main__":
 
 
     def generate(epoch):
-        sample = torch.zeros(64, 3, 64, 64)
+        sample = torch.zeros(64, args.data_channels, 64, 64)
         if args.cuda:
             sample = sample.cuda()
         model.eval() 
 
         for i in xrange(64):
             for j in xrange(64):
-                output = model(Variable(sample, volatile=True))
-                
-                for k in xrange(3):
-                    probs = F.softmax(output[:, :, k, i, j]).data
-                    sample[:, k, i, j] = torch.multinomial(probs, 1).float() / 255.
+                for k in xrange(args.data_channels):
+                    output = model(Variable(sample, volatile=True))
+                    output = torch.exp(log_softmax_by_dim(output, dim=1))
+                    probs = output[:, :, k, i, j].data
+                    sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
         save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
 
@@ -176,6 +190,9 @@ if __name__ == "__main__":
             'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
+            'data_channels': args.data_channels,
+            'out_dims': args.out_dims,
+            'n_blocks': args.n_blocks,
         }, is_best, folder='./trained_models/pixel_cnn')     
 
         if is_best:

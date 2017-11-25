@@ -134,9 +134,6 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             output = model(data)
             loss = cross_entropy_by_dim(output, target)
-            # loss = 0
-            # for i in xrange(args.data_channels):
-            #     loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -166,9 +163,6 @@ if __name__ == "__main__":
 
             output = model(data)
             loss = cross_entropy_by_dim(output, target)
-            # loss = 0
-            # for i in xrange(args.data_channels):
-            #     loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))

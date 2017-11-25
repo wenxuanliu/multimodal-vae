@@ -350,53 +350,131 @@ class Swish(nn.Module):
         return x * F.sigmoid(x)
 
 
-class PixelCNN(nn.Module):
-    def __init__(self):
-        super(PixelCNN, self).__init__()
-        self.net = nn.Sequential(
-            MaskedConv2d('A', 3,  64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            MaskedConv2d('B', 64, 64, 7, 1, 3, bias=False), 
-            nn.BatchNorm2d(64), 
-            nn.ReLU(True),
-            nn.Conv2d(64, 256 * 3, 1),  # RGB needs 256 times 3
-        )
+class GatedPixelCNN(nn.Module):
+    """Improved PixelCNN with blind spot and gated blocks."""
+    def __init__(self, n_blocks=15, data_channels=1, out_dims=256):
+        super(GatedPixelCNN, self).__init__()
+        self.conv1 = GatedResidualBlock(data_channels, 128, 7, 'A')
+        self.blocks = GatedResidualBlockList(n_blocks, 128, 128, 3, 'B')
+        self.conv2 = MaskedConv2d('B', data_channels, 128, 16, 1)
+        self.conv4 = MaskedConv2d('B', data_channels, 16, out_dims * data_channels, 1)
+        self.data_channels = data_channels
+        self.out_dims = out_dims
+        self.n_blocks
 
     def forward(self, x):
-        x = self.net(x)
-        x = x.view(-1, 256, 3, 64, 64)  # give it RGB channels
-        return x
+        x, h = self.conv1(x, x)
+        _, h = self.blocks(x, h)
+        h = self.conv2(F.relu(h))
+        h = self.conv4(F.relu(h))
+
+        batch_size, _, height, width = h.size()
+        h = h.view(batch_size, self.out_dims, self.data_channels, 
+                   height, width)
+        return h
+
+
+class GatedResidualBlockList(nn.Module):
+    def __init__(self, block_num, *args, **kwargs):
+        super(GatedResidualBlockList, self).__init__()
+        blocks = [GatedResidualBlock(*args, **kwargs) for i in xrange(block_num)]
+        self.blocks = nn.Sequential(*blocks)
+
+    def forward(self, x, h):
+        for block in self.blocks:
+            x_, h_ = block(x, h)
+            x, h = x_, h + h_
+
+        return x, h
+
+
+class GatedResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, mask_type, 
+                 data_channels=1):
+        super(GatedResidualBlock, self).__init__()
+        self.vertical_conv = CroppedConv2d(in_channels, 2 * out_channels, 
+                                           kernel_size=(kernel_size // 2 + 1, kernel_size),
+                                           padding=(kernel_size // 2 + 1, kernel_size // 2))
+        self.x_to_h_conv = MaskedConv2d(mask_type, data_channels, 2 * out_channels, 
+                                        2 * out_channels, 1)
+        self.vertical_gate_conv = nn.Conv2d(2 * out_channels, 2 * out_channels, 1)
+        self.horizontal_conv = CroppedConv2d(in_channels, 2 * out_channels, 
+                                             kernel_size=(1, kernel_size // 2 + 1), 
+                                             padding=(0, kernel_size // 2 + 1))
+        self.horizontal_gate_conv = nn.Conv2d(2 * out_channels, 2 * out_channels, 1)
+        self.horizontal_output = MaskedConv2d(mask_type, data_channels, out_channels, 
+                                              out_channels, 1)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.data_channels = data_channels
+
+    def forward(self, x, h):
+        x = self.vertical_conv(x)
+        to_vertical = self.x_to_h_conv(x)
+
+        x_t, x_s = torch.split(self.vertical_gate_conv(x), self.out_channels, dim=1)
+        x = F.tanh(x_t) * F.sigmoid(x_s)
+
+        h_ = self.horizontal_conv(h)
+        h_t, h_s = torch.split(self.horizontal_gate_conv(h_ + to_vertical), 
+                               self.out_channels, dim=1)
+        h = self.horizontal_output(F.tanh(h_t) * F.sigmoid(h_s))
+        return x, h
 
 
 class MaskedConv2d(nn.Conv2d):
-    def __init__(self, mask_type, *args, **kwargs):
+    # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
+    def __init__(self, mask_type, data_channels, *args, **kwargs):
         super(MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
-        _, _, kH, kW = self.weight.size()
+        cout, cin, kh, kw = self.weight.size()
+        yc, xc = kh // 2, kw // 2
+       
+        # initialize at all 1s
         self.mask.fill_(1)
-        self.mask[:, :, kH // 2, kW // 2 + (mask_type == 'B'):] = 0
-        self.mask[:, :, kH // 2 + 1:] = 0
+        if kh > 1 and kw > 1:
+            self.mask[:, :, yc, xc + (mask_type == 'B'):] = 0
+            self.mask[:, :, yc + 1:] = 0
 
+        self.mask_type = mask_type
+        self.data_channels = data_channels
+        
     def forward(self, x):
         self.weight.data *= self.mask
         return super(MaskedConv2d, self).forward(x)
+
+
+class CroppedConv2d(nn.Conv2d):
+    def __init__(self, *args, **kwargs):
+        super(CroppedConv2d, self).__init__(*args, **kwargs)
+
+    def forward(self, x):
+        x = super(CroppedConv2d, self).forward(x)
+        _, _, kh, kw = self.weight.size()
+        pad_h, pad_w = self.padding
+        h_crop = -(kh + 1) if pad_h == kh else None
+        w_crop = -(kw + 1) if pad_w == kw else None
+        return x[:, :, :h_crop, :w_crop]
+
+
+def log_softmax_by_dim(input, dim=1):
+    input_size = input.size()
+    trans_input = input.transpose(dim, len(input_size) - 1)
+    trans_size = trans_input.size()
+    input_2d = trans_input.contiguous().view(-1, trans_size[-1])
+    soft_max_2d = F.log_softmax(input_2d)
+    soft_max_nd = soft_max_2d.view(*trans_size)
+    return soft_max_nd.transpose(dim, len(input_size) - 1)
+
+
+def cross_entropy_by_dim(input, output, dim=1):
+    input_size = input.size()
+    output_size = output.size()
+
+    trans_input = input.permute(0, 2, 3, 4, 1)
+    trans_input_size = trans_input.size()
+
+    input_2d = trans_input.contiguous().view(-1, trans_input_size[-1])
+    output_2d = output.contiguous().view(-1)
+    return F.cross_entropy(input_2d, output_2d)
