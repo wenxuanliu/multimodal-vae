@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-from model import PixelCNN, GatedPixelCNN
+from model import PixelCNN, PixelCNNv2, GatedPixelCNN
 from model import cross_entropy_by_dim, log_softmax_by_dim
 from train import AverageMeter
 
@@ -133,10 +133,10 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             output = model(data)
-            # loss = cross_entropy_by_dim(output, target)
-            loss = 0
-            for i in xrange(args.data_channels):
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
+            loss = cross_entropy_by_dim(output, target)
+            # loss = 0
+            # for i in xrange(args.data_channels):
+            #     loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :])
             loss_meter.update(loss.data[0], len(data))
             
             loss.backward()
@@ -166,9 +166,9 @@ if __name__ == "__main__":
 
             output = model(data)
             loss = cross_entropy_by_dim(output, target)
-            loss = 0
-            for i in xrange(args.data_channels):
-                loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
+            # loss = 0
+            # for i in xrange(args.data_channels):
+            #     loss += F.cross_entropy(output[:, :, i, :, :], target[:, i, :, :]) 
             loss_meter.update(loss.data[0], len(data))
         
         print('====> Test Epoch\tLoss: {:.4f}'.format(loss_meter.avg))
@@ -181,9 +181,9 @@ if __name__ == "__main__":
             sample = sample.cuda()
         model.eval() 
 
-        for i in xrange(28):
-            for j in xrange(28):
-                for k in xrange(args.data_channels):
+        for k in xrange(args.data_channels):
+            for i in xrange(28):
+                for j in xrange(28):
                     output = model(Variable(sample, volatile=True))
                     output = torch.exp(log_softmax_by_dim(output, dim=1))
                     probs = output[:, :, k, i, j].data
