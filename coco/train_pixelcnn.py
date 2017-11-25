@@ -44,8 +44,7 @@ def load_checkpoint(file_path, use_cuda=False):
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
     model = GatedPixelCNN(n_groups=checkpoint['n_groups'],
-                          data_channels=checkpoint['data_channels'],
-                          out_dims=checkpoint['out_dims'])
+                          data_channels=3, out_dims=checkpoint['out_dims'])
     model.load_state_dict(checkpoint['state_dict'])
     if use_cuda:
         model.cuda()
@@ -84,7 +83,10 @@ if __name__ == "__main__":
         os.makedirs('./results/pixel_cnn')
 
     def preprocess(x):
-        x = transforms.ToTensor()(x)
+        transform = transforms.Compose([transforms.Scale(32),
+                                        transforms.CenterCrop(32),
+                                        transforms.ToTensor()])
+        x = transform(x)
         if args.out_dims < 256:
             x = quantisize(x.numpy(), args.out_dims).astype('f')
             x = torch.from_numpy(x) / (args.out_dims - 1)
@@ -94,17 +96,16 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
-                              transform=transform_train),
+                              transform=preprocess),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
-                              transform=transform_test),
+                              transform=preprocess),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = GatedPixelCNN(n_blocks=15, data_channels=args.data_channels, 
-                          out_dims=args.out_dims)
+    model = GatedPixelCNN(n_blocks=15, data_channels=3, out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 
@@ -162,14 +163,14 @@ if __name__ == "__main__":
 
 
     def generate(epoch):
-        sample = torch.zeros(64, args.data_channels, 64, 64)
+        sample = torch.zeros(64, 3, 32, 32)
         if args.cuda:
             sample = sample.cuda()
         model.eval() 
 
-        for i in xrange(64):
-            for j in xrange(64):
-                for k in xrange(args.data_channels):
+        for i in xrange(32):
+            for j in xrange(32):
+                for k in xrange(3):
                     output = model(Variable(sample, volatile=True))
                     output = torch.exp(log_softmax_by_dim(output, dim=1))
                     probs = output[:, :, k, i, j].data
@@ -190,7 +191,6 @@ if __name__ == "__main__":
             'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
-            'data_channels': args.data_channels,
             'out_dims': args.out_dims,
             'n_blocks': args.n_blocks,
         }, is_best, folder='./trained_models/pixel_cnn')     

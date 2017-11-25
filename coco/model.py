@@ -360,7 +360,7 @@ class GatedPixelCNN(nn.Module):
         self.conv4 = MaskedConv2d('B', data_channels, 16, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
-        self.n_blocks
+        self.n_blocks = n_blocks
 
     def forward(self, x):
         x, h = self.conv1(x, x)
