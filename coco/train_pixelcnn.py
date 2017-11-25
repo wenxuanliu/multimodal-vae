@@ -54,6 +54,8 @@ def load_checkpoint(file_path, use_cuda=False):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--n_blocks', type=int, default=15, metavar='N',
+                        help='number of blocks ResNet')
     parser.add_argument('--out_dims', type=int, default=256, metavar='N',
                         help='2|4|8|16|...|256 (default: 256)')
     parser.add_argument('--batch_size', type=int, default=32, metavar='N',
@@ -105,7 +107,8 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = GatedPixelCNN(n_blocks=15, data_channels=3, out_dims=args.out_dims)
+    model = GatedPixelCNN(n_blocks=args.n_blocks, data_channels=3, 
+                          out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 
