@@ -365,8 +365,8 @@ class MaskedConv2d(nn.Conv2d):
         # initialize at all 1s
         self.mask.fill_(1)
         if kh > 1 and kw > 1:
-            self.mask[:, :, kh // 2, kw // 2 + (mask_type == 'B'):] = 0
-            self.mask[:, :, kh // 2 + 1:] = 0
+            self.mask[:, :, yc, xc + (mask_type == 'B'):] = 0
+            self.mask[:, :, yc + 1:] = 0
 
         self.mask_type = mask_type
         self.data_channels = data_channels
