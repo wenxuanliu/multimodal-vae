@@ -272,7 +272,7 @@ class GatedResidualBlockList(nn.Module):
 class GatedResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, mask_type, 
                  data_channels=1):
-        super(ResidualBlock, self).__init__()
+        super(GatedResidualBlock, self).__init__()
         self.vertical_conv = CroppedConv2d(in_channels, 2 * out_channels, 
                                            kernel_size=(kernel_size // 2 + 1, kernel_size),
                                            padding=(kernel_size // 2 + 1, kernel_size // 2))
@@ -364,8 +364,9 @@ class MaskedConv2d(nn.Conv2d):
        
         # initialize at all 1s
         self.mask.fill_(1)
-        self.mask[:, :, kh // 2, kw // 2 + (mask_type == 'B'):] = 0
-        self.mask[:, :, kh // 2 + 1:] = 0
+        if kh > 1 and kw > 1:
+            self.mask[:, :, kh // 2, kw // 2 + (mask_type == 'B'):] = 0
+            self.mask[:, :, kh // 2 + 1:] = 0
 
         self.mask_type = mask_type
         self.data_channels = data_channels
