@@ -73,20 +73,21 @@ if __name__ == "__main__":
     parser.add_argument('--cuda', action='store_true', default=False,
                         help='enables CUDA training (default: False)')
     args = parser.parse_args()
+    args.folder_name = 'pixel_cifar' if args.cifar else 'pixel_cnn'
     args.cuda = args.cuda and torch.cuda.is_available()
     assert args.out_dims <= 256 and args.out_dims > 1
 
     if not os.path.isdir('./trained_models'):
         os.makedirs('./trained_models')
 
-    if not os.path.isdir('./trained_models/pixel_cnn'):
-        os.makedirs('./trained_models/pixel_cnn')
+    if not os.path.isdir('./trained_models/%s' % args.folder_name):
+        os.makedirs('./trained_models/%s' % args.folder_name)
 
     if not os.path.isdir('./results'):
         os.makedirs('./results')
 
-    if not os.path.isdir('./results/pixel_cnn'):
-        os.makedirs('./results/pixel_cnn')
+    if not os.path.isdir('./results/%s' % args.folder_name):
+        os.makedirs('./results/%s' % args.folder_name)
 
     def preprocess(x):
         transform = transforms.Compose([transforms.Scale(args.image_size),
@@ -136,7 +137,7 @@ if __name__ == "__main__":
         for batch_idx, (data, _) in enumerate(train_loader):
             data = Variable(data)
             target = Variable((data.data * (args.out_dims - 1)).long())
-            
+
             if args.cuda:
                 data = data.cuda()
                 target = target.cuda()
@@ -193,7 +194,7 @@ if __name__ == "__main__":
                     probs = output[:, :, k, i, j].data
                     sample[:, k, i, j] = torch.multinomial(probs, 1).float() / (args.out_dims - 1)
 
-        save_image(sample, './results/pixel_cnn/sample_{}.png'.format(epoch)) 
+        save_image(sample, './results/{}/sample_{}.png'.format(args.folder_name, epoch)) 
 
 
     best_loss = sys.maxint
@@ -210,7 +211,7 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
             'out_dims': args.out_dims,
             'n_blocks': args.n_blocks,
-        }, is_best, folder='./trained_models/pixel_cnn')     
+        }, is_best, folder='./trained_models/%s' % args.folder_name)     
 
         if is_best:
             generate(epoch)
