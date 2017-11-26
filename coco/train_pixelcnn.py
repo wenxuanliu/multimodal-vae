@@ -43,8 +43,8 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-    model = GatedPixelCNN(n_groups=checkpoint['n_groups'],
-                          data_channels=3, out_dims=checkpoint['out_dims'])
+    model = GatedPixelCNN(n_groups=checkpoint['n_groups'], data_channels=3, 
+                          hid_dims=checkpoint['hid_dims'], out_dims=checkpoint['out_dims'])
     model.load_state_dict(checkpoint['state_dict'])
     if use_cuda:
         model.cuda()
@@ -55,7 +55,9 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_blocks', type=int, default=15, metavar='N',
-                        help='number of blocks ResNet')
+                        help='number of blocks ResNet (default: 15)')
+    parser.add_argument('--hid_dims', type=int, default=128, metavar='N',
+                        help='number of hidden RNN states (default: 128)')
     parser.add_argument('--out_dims', type=int, default=256, metavar='N',
                         help='2|4|8|16|...|256 (default: 256)')
     parser.add_argument('--image_size', type=int, default=32, metavar='N',
@@ -123,7 +125,7 @@ if __name__ == "__main__":
 
     # load multimodal VAE
     model = GatedPixelCNN(n_blocks=args.n_blocks, data_channels=3, 
-                          out_dims=args.out_dims)
+                          hid_dims=args.hid_dims, out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 
@@ -209,6 +211,7 @@ if __name__ == "__main__":
             'state_dict': model.state_dict(),
             'best_loss': best_loss,
             'optimizer' : optimizer.state_dict(),
+            'hid_dims': args.hid_dims,
             'out_dims': args.out_dims,
             'n_blocks': args.n_blocks,
         }, is_best, folder='./trained_models/%s' % args.folder_name)     

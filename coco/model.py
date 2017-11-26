@@ -352,12 +352,13 @@ class Swish(nn.Module):
 
 class GatedPixelCNN(nn.Module):
     """Improved PixelCNN with blind spot and gated blocks."""
-    def __init__(self, n_blocks=15, data_channels=1, out_dims=256):
+    def __init__(self, n_blocks=15, data_channels=1, hid_dims=128, out_dims=256):
         super(GatedPixelCNN, self).__init__()
-        self.conv1 = GatedResidualBlock(data_channels, 128, 7, 'A')
-        self.blocks = GatedResidualBlockList(n_blocks, 128, 128, 3, 'B')
-        self.conv2 = MaskedConv2d('B', data_channels, 128, 16, 1)
-        self.conv4 = MaskedConv2d('B', data_channels, 16, out_dims * data_channels, 1)
+        self.conv1 = GatedResidualBlock(data_channels, hid_dims, 7, 'A')
+        self.blocks = GatedResidualBlockList(n_blocks, hid_dims, hid_dims, 3, 'B')
+        self.conv2 = MaskedConv2d('B', data_channels, hid_dims, hid_dims, 1)
+        self.conv3 = MaskedConv2d('B', data_channels, hid_dims, hid_dims, 1)
+        self.conv4 = MaskedConv2d('B', data_channels, hid_dims, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
         self.n_blocks = n_blocks
@@ -366,6 +367,7 @@ class GatedPixelCNN(nn.Module):
         x, h = self.conv1(x, x)
         _, h = self.blocks(x, h)
         h = self.conv2(F.relu(h))
+        h = self.conv3(F.relu(h))
         h = self.conv4(F.relu(h))
 
         batch_size, _, height, width = h.size()
