@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
-from model import GatedPixelCNN
+from model import PixelCNN, GatedPixelCNN
 from model import cross_entropy_by_dim, log_softmax_by_dim
 from train import AverageMeter
 
@@ -124,8 +124,8 @@ if __name__ == "__main__":
             batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = GatedPixelCNN(n_blocks=args.n_blocks, data_channels=3, 
-                          hid_dims=args.hid_dims, out_dims=args.out_dims)
+    model = PixelCNN(n_blocks=args.n_blocks, data_channels=3, 
+                     hid_dims=args.hid_dims, out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 

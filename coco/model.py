@@ -350,15 +350,43 @@ class Swish(nn.Module):
         return x * F.sigmoid(x)
 
 
+class PixelCNN(nn.Module):
+    """Vanilla PixelCNN from first Van de Oord paper."""
+    def __init__(self, n_blocks=15, data_channels=1, hid_dims=128, out_dims=256):
+        super(PixelCNN, self).__init__()
+        self.conv1 = MaskedConv2d('A', data_channels, hid_dims, 7, 1, 3)
+        blocks = []
+        for _ in xrange(n_blocks):
+            conv = MaskedConv2d('B', hid_dims, hid_dims, 3, 1, 1)
+            relu = nn.ReLU(True)
+            blocks += [conv, relu]
+        self.blocks = nn.Sequential(*blocks)
+        self.conv2 = MaskedConv2d('B', hid_dims, hid_dims, 1)
+        self.conv3 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
+        self.data_channels = data_channels
+        self.hid_dims = hid_dims
+        self.out_dims = out_dims
+        self.n_blocks = n_blocks
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.blocks(x)
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
+        batch_size, _, height, width = x.size()
+        x = x.view(batch_size, self.out_dims, self.data_channels, height, width)         
+        return x
+
+
 class GatedPixelCNN(nn.Module):
     """Improved PixelCNN with blind spot and gated blocks."""
     def __init__(self, n_blocks=15, data_channels=1, hid_dims=128, out_dims=256):
         super(GatedPixelCNN, self).__init__()
-        self.conv1 = GatedResidualBlock(data_channels, hid_dims, 7, 'A')
-        self.blocks = GatedResidualBlockList(n_blocks, hid_dims, hid_dims, 3, 'B')
-        self.conv2 = MaskedConv2d('B', data_channels, hid_dims, hid_dims, 1)
-        self.conv3 = MaskedConv2d('B', data_channels, hid_dims, hid_dims, 1)
-        self.conv4 = MaskedConv2d('B', data_channels, hid_dims, out_dims * data_channels, 1)
+        self.conv1 = GatedResidualBlock('A', hid_dims, 7)
+        self.blocks = GatedResidualBlockList(n_blocks, 'B', hid_dims, hid_dims, 3)
+        self.conv2 = MaskedConv2d('B', hid_dims, hid_dims, 1)
+        self.conv3 = MaskedConv2d('B', hid_dims, hid_dims, 1)
+        self.conv4 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
         self.n_blocks = n_blocks
@@ -391,21 +419,18 @@ class GatedResidualBlockList(nn.Module):
 
 
 class GatedResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, mask_type, 
-                 data_channels=1):
+    def __init__(self, in_channels, out_channels, kernel_size):
         super(GatedResidualBlock, self).__init__()
         self.vertical_conv = CroppedConv2d(in_channels, 2 * out_channels, 
                                            kernel_size=(kernel_size // 2 + 1, kernel_size),
                                            padding=(kernel_size // 2 + 1, kernel_size // 2))
-        self.x_to_h_conv = MaskedConv2d(mask_type, data_channels, 2 * out_channels, 
-                                        2 * out_channels, 1)
+        self.x_to_h_conv = MaskedConv2d(mask_type, 2 * out_channels, 2 * out_channels, 1)
         self.vertical_gate_conv = nn.Conv2d(2 * out_channels, 2 * out_channels, 1)
         self.horizontal_conv = CroppedConv2d(in_channels, 2 * out_channels, 
                                              kernel_size=(1, kernel_size // 2 + 1), 
                                              padding=(0, kernel_size // 2 + 1))
         self.horizontal_gate_conv = nn.Conv2d(2 * out_channels, 2 * out_channels, 1)
-        self.horizontal_output = MaskedConv2d(mask_type, data_channels, out_channels, 
-                                              out_channels, 1)
+        self.horizontal_output = MaskedConv2d(mask_type, out_channels, out_channels, 1)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.data_channels = data_channels
@@ -425,8 +450,7 @@ class GatedResidualBlock(nn.Module):
 
 
 class MaskedConv2d(nn.Conv2d):
-    # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
-    def __init__(self, mask_type, data_channels, *args, **kwargs):
+    def __init__(self, mask_type,  *args, **kwargs):
         super(MaskedConv2d, self).__init__(*args, **kwargs)
         assert mask_type in {'A', 'B'}
         self.register_buffer('mask', self.weight.data.clone())
@@ -440,11 +464,38 @@ class MaskedConv2d(nn.Conv2d):
             self.mask[:, :, yc + 1:] = 0
 
         self.mask_type = mask_type
-        self.data_channels = data_channels
         
     def forward(self, x):
         self.weight.data *= self.mask
         return super(MaskedConv2d, self).forward(x)
+
+
+class MaskedConv2dRGB(nn.Conv2d):
+    # Adapted from https://github.com/igul222/pixel_rnn/blob/master/pixel_rnn.py-0
+    def __init__(self, mask_type, data_channels, *args, **kwargs):
+        super(MaskedConv2dRGB, self).__init__(*args, **kwargs)
+        assert mask_type in {'A', 'B'}
+        self.register_buffer('mask', self.weight.data.clone())
+        cout, cin, kh, kw = self.weight.size()
+        yc, xc = kh // 2, kw // 2
+        self.mask.fill_(1)
+        
+        for i in xrange(xc):
+            for j in xrange(yc):
+                if (j > yc) or (j == yc and i > xc):
+                    mask[:, :, j, i] = 0.
+        
+        for i in xrange(data_channels):
+            for j in xrange(data_channels):
+                if (mask_type == 'A' and i >= j) or (mask_type == 'B' and i > j):
+                    self.mask[j::data_channels, i::data_channels, yc, xc] = 0.
+ 
+        self.mask_type = mask_type
+        self.data_channels = data_channels
+
+    def forward(self, x):
+        self.weight.data *= self.mask
+        return super(MaskedConv2dRGB, self).forward(x)
 
 
 class CroppedConv2d(nn.Conv2d):
