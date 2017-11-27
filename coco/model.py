@@ -362,7 +362,7 @@ class PixelCNN(nn.Module):
             blocks += [conv, relu]
         self.blocks = nn.Sequential(*blocks)
         self.conv2 = MaskedConv2d('B', hid_dims, hid_dims, 1)
-        self.conv3 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
+        self.conv4 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.hid_dims = hid_dims
         self.out_dims = out_dims
@@ -372,7 +372,7 @@ class PixelCNN(nn.Module):
         x = self.conv1(x)
         x = self.blocks(x)
         x = F.relu(self.conv2(x))
-        x = self.conv3(x)
+        x = self.conv4(x)
         batch_size, _, height, width = x.size()
         x = x.view(batch_size, self.out_dims, self.data_channels, height, width)         
         return x
@@ -385,7 +385,6 @@ class GatedPixelCNN(nn.Module):
         self.conv1 = GatedResidualBlock('A', hid_dims, 7)
         self.blocks = GatedResidualBlockList(n_blocks, 'B', hid_dims, hid_dims, 3)
         self.conv2 = MaskedConv2d('B', hid_dims, hid_dims, 1)
-        self.conv3 = MaskedConv2d('B', hid_dims, hid_dims, 1)
         self.conv4 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
         self.data_channels = data_channels
         self.out_dims = out_dims
@@ -395,7 +394,6 @@ class GatedPixelCNN(nn.Module):
         x, h = self.conv1(x, x)
         _, h = self.blocks(x, h)
         h = self.conv2(F.relu(h))
-        h = self.conv3(F.relu(h))
         h = self.conv4(F.relu(h))
 
         batch_size, _, height, width = h.size()
