@@ -382,7 +382,7 @@ class GatedPixelCNN(nn.Module):
     """Improved PixelCNN with blind spot and gated blocks."""
     def __init__(self, n_blocks=15, data_channels=1, hid_dims=128, out_dims=256):
         super(GatedPixelCNN, self).__init__()
-        self.conv1 = GatedResidualBlock('A', hid_dims, 7)
+        self.conv1 = GatedResidualBlock('A', data_channels, hid_dims, 7)
         self.blocks = GatedResidualBlockList(n_blocks, 'B', hid_dims, hid_dims, 3)
         self.conv2 = MaskedConv2d('B', hid_dims, hid_dims, 1)
         self.conv4 = MaskedConv2d('B', hid_dims, out_dims * data_channels, 1)
@@ -417,7 +417,7 @@ class GatedResidualBlockList(nn.Module):
 
 
 class GatedResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size):
+    def __init__(self, mask_type, in_channels, out_channels, kernel_size):
         super(GatedResidualBlock, self).__init__()
         self.vertical_conv = CroppedConv2d(in_channels, 2 * out_channels, 
                                            kernel_size=(kernel_size // 2 + 1, kernel_size),
@@ -431,7 +431,6 @@ class GatedResidualBlock(nn.Module):
         self.horizontal_output = MaskedConv2d(mask_type, out_channels, out_channels, 1)
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.data_channels = data_channels
 
     def forward(self, x, h):
         x = self.vertical_conv(x)
