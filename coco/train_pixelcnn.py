@@ -124,8 +124,8 @@ if __name__ == "__main__":
             batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
-    model = PixelCNN(n_blocks=args.n_blocks, data_channels=3, 
-                     hid_dims=args.hid_dims, out_dims=args.out_dims)
+    model = GatedPixelCNN(n_blocks=args.n_blocks, data_channels=3, 
+                          hid_dims=args.hid_dims, out_dims=args.out_dims)
     if args.cuda:
         model.cuda()
 
