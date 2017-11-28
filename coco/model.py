@@ -189,7 +189,7 @@ class ImageDecoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageDecoder, self).__init__()
         self.upsample = nn.Sequential(
-            nn.Linear(n_latents, 512 * 4 * 4),
+            nn.Linear(n_latents, 512 * 2 * 2),
             Swish(),
         )
         self.hallucinate = nn.Sequential(
@@ -208,7 +208,7 @@ class ImageDecoder(nn.Module):
     def forward(self, z):
         # the input will be a vector of size |n_latents|
         z = self.upsample(z)
-        z = z.view(-1, 512, 4, 4)
+        z = z.view(-1, 512, 2, 2)
         z = self.hallucinate(z)
         return F.sigmoid(z)
 
@@ -250,15 +250,16 @@ class TextDecoder(nn.Module):
                         (default: 300)
     :param use_cuda: whether to use cuda tensors
     """
-    def __init__(self, n_latents, n_embedding=300, use_cuda=False):
+    def __init__(self, n_latents, n_embedding=300, n_hiddens=200,  use_cuda=False):
         super(TextDecoder, self).__init__()
-        self.z2h = nn.Linear(n_latents, 200)
-        self.gru = nn.GRU(n_embedding + n_latents, 200, 2, dropout=0.1)
-        self.h2o = nn.Linear(n_embedding + n_latents, n_embedding)
+        self.z2h = nn.Linear(n_latents, n_hiddens)
+        self.gru = nn.GRU(n_embedding + n_latents, n_hiddens, 2, dropout=0.1)
+        self.h2o = nn.Linear(n_hiddens + n_latents, n_embedding)
         self.glove = GloVe()
         self.use_cuda = use_cuda
         self.n_latents = n_latents
         self.n_embedding = n_embedding
+        self.n_hiddens = n_hiddens
 
     def forward(self, z):
         n_latents = self.n_latents
@@ -279,10 +280,10 @@ class TextDecoder(nn.Module):
         # look through n_steps and generate characters
         for i in xrange(MAX_WORDS):
             w_out, h = self.step(i, z, w_in, h)
-            words[:, i] = w_out
+            sentence[:, i] = w_out
             w_in = w_out
 
-        return words  # (batch_size, seq_len, ...)
+        return sentence  # (batch_size, seq_len, ...)
 
     def generate(self, z):
         words = self.forward(z)  # shape is (batch_size, seq_len, n_embedding)
