@@ -303,6 +303,9 @@ class TextDecoder(nn.Module):
 
         return reshape
 
+    def generate_vector(self, z):
+        return self.forward(z)
+
     def step(self, ix, z, w_in, h):
         # w_in is a (batch, n_embedding)
         w_in = torch.cat((w_in, z), dim=1)  # n_embedding + n_latents

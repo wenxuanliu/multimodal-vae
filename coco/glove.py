@@ -9,6 +9,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import torch
+from torch.autograd import Variable
 import torchtext.vocab as vocab
 
 
@@ -47,11 +48,16 @@ class GloVe(object):
         batch_size = len(vec_batch)
         dict_size = len(self.glove.itos)
         all_dists = torch.zeros((batch_size, dict_size))
+        use_cuda = vec_batch.is_cuda
 
         for iw, word in enumerate(self.glove.itos):
             for iv, vec in enumerate(vec_batch):
-                dist = torch.dist(vec, self.get_word(word ))
-                all_dists[iv, iw] = dist
+                word_vec = self.get_word(word)
+                if use_cuda:
+                    word_vec = word_vec.cuda()
+                word_vec = Variable(word_vec)
+                dist = torch.dist(vec, word_vec)
+                all_dists[iv, iw] = dist.data[0]
 
         top_dist = torch.zeros(batch_size)
         for ix in xrange(batch_size):

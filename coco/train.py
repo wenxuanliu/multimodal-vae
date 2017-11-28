@@ -247,6 +247,8 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')   
 
+        is_best = True
+
         if is_best:
             sample = Variable(torch.randn(64, args.n_latents))
             if args.cuda:
@@ -256,6 +258,5 @@ if __name__ == "__main__":
             save_image(image_sample.view(64, 3, 32, 32),
                        './results/sample_image.png')
 
-            sample_texts = vae.text_decoder.generate(sample)
-            with open('./results/sample_text.txt', 'w') as fp:
-                fp.writelines(sample_texts)
+            sample_texts = vae.text_decoder.generate_vector(sample).data
+            torch.save(sample_texts, './results/sample_text_vector.pt')
