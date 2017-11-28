@@ -24,8 +24,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        self.text_encoder = TextEncoder(n_latents, n_characters)
-        self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
+        self.text_encoder = TextEncoder(n_latents)
+        self.text_decoder = TextDecoder(n_latents, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
@@ -60,7 +60,6 @@ class MultimodalVAE(nn.Module):
     def forward(self, image=None, text=None):
         # can't just put nothing
         assert image is not None or text is not None
-        
         if image is not None and text is not None:
             # compute separate gaussians per modality
             image_mu, image_logvar = self.encode_image(image)
@@ -121,8 +120,8 @@ class ImageVAE(nn.Module):
 class TextVAE(nn.Module):
     def __init__(self, n_latents=20, use_cuda=False):
         super(TextVAE, self).__init__()
-        self.encoder = TextEncoder(n_latents, n_characters)
-        self.decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
+        self.encoder = TextEncoder(n_latents)
+        self.decoder = TextDecoder(n_latents, use_cuda=use_cuda)
         self.n_latents = n_latents
 
     def encode(self, x):

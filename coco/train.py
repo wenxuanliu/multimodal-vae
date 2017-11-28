@@ -118,13 +118,13 @@ if __name__ == "__main__":
         datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
                               transform=transform_train,
-                              target_transform=coco_char_tensor),
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
                               transform=transform_test,
-                              target_transform=coco_char_tensor),
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
