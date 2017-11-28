@@ -54,4 +54,4 @@ if __name__ == "__main__":
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.tick_params(axis='both', which='minor', labelsize=16)
     plt.tight_layout()
-    plt.savefig('./weak_supervision.png')
+    plt.savefig('./weak_paired_supervision.png')
