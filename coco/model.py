@@ -167,7 +167,7 @@ class ImageEncoder(nn.Module):
             Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 4 * 4, 1024),
+            nn.Linear(512 * 2 * 2, 1024),
             Swish(),
             nn.Dropout(p=0.1),
             nn.Linear(1024, 256),
@@ -180,7 +180,7 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 512 * 4 * 4)
+        x = x.view(-1, 512 * 2 * 2)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
