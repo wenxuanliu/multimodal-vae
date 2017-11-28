@@ -18,7 +18,9 @@ class GloVe(object):
         self.glove = vocab.GloVe(name='840B', dim=300)
 
     def get_word(self, word):
-        return self.glove.vectors[self.glove.stoi[word]]
+        if word in self.glove.stoi:
+            return self.glove.vectors[self.glove.stoi[word]]
+        return None
 
     def closest(self, vec, n=10):
         """

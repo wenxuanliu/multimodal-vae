@@ -39,7 +39,9 @@ def text_transformer(deterministic=False):
 
         embeddings = torch.zeros((MAX_WORDS + 2, 300))
         for i, word in enumerate(words):
-            embeddings[i] = glove.get_word(word)
+            glove_vec = glove.get_word(word)
+            if glove_vec is not None:
+                embeddings[i] = glove_vec
 
         return embeddings
 
