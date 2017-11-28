@@ -173,8 +173,8 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_latents', type=int, default=100,
-                        help='size of the latent embedding')
+    parser.add_argument('--n_latents', type=int, default=20,
+                        help='size of the latent embedding (default: 20)')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')
     parser.add_argument('--epochs', type=int, default=20, metavar='N',
