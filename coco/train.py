@@ -69,8 +69,8 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     image_BCE, text_BCE = 0, 0
     
     if recon_image is not None and image is not None:
-        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 64 * 64), 
-                                                       image.view(-1, 1 * 64 * 64))
+        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 32 * 32), 
+                                                       image.view(-1, 1 * 32 * 32))
 
     if recon_text is not None and text is not None:
         text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
@@ -104,11 +104,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    transform_train = transforms.Compose([transforms.Scale(64),
-                                          transforms.CenterCrop(64),
+    transform_train = transforms.Compose([transforms.Scale(32),
+                                          transforms.CenterCrop(32),
                                           transforms.ToTensor()])
-    transform_test = transforms.Compose([transforms.Scale(64),
-                                         transforms.CenterCrop(64),
+    transform_test = transforms.Compose([transforms.Scale(32),
+                                         transforms.CenterCrop(32),
                                          transforms.ToTensor()])
     # transformer for text.
     transform_text = text_transformer(deterministic=False)
@@ -253,7 +253,7 @@ if __name__ == "__main__":
                sample = sample.cuda()
 
             image_sample = vae.image_decoder(sample).cpu().data
-            save_image(image_sample.view(64, 3, 64, 64),
+            save_image(image_sample.view(64, 3, 32, 32),
                        './results/sample_image.png')
 
             sample_texts = vae.text_decoder.generate(sample)
