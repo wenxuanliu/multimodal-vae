@@ -78,8 +78,8 @@ if __name__ == "__main__":
         ax.set_yticklabels(column_labels, minor=False)
         
         plt.colorbar(heatmap)
-        plt.xlabel('% Image Examples', fontsize=18)
-        plt.ylabel('% Text Examples', fontsize=18)
+        plt.xlabel('% Text Examples', fontsize=18)
+        plt.ylabel('% Image Examples', fontsize=18)
 
         plt.tight_layout()
         plt.savefig(savepath)
