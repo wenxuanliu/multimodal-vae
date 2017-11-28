@@ -48,7 +48,7 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
         batch_size=batch_size, shuffle=True)
 
     # load multimodal VAE
-    vae = MultimodalVAE(n_latents=n_latents, use_cuda=cuda)
+    vae = MultimodalVAE(n_latents=n_latents)
     if cuda:
         vae.cuda()
 
@@ -81,7 +81,6 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
             # depending on this flip, we decide whether or not to show a modality 
             # versus another one.
             flip = np.random.random()
-
             if flip < weak_perc_m1:
                 recon_image_2, recon_text_2, mu_2, logvar_2 = vae(image=image)
                 loss_2 = loss_function(mu_2, logvar_2, recon_image=recon_image_2, image=image, 
@@ -90,7 +89,7 @@ def train_pipeline(out_dir, weak_perc_m1, weak_perc_m2, n_latents=20, batch_size
                 loss += loss_2
 
             flip = np.random.random()
-            if flip > weak_perc_m2:
+            if flip < weak_perc_m2:
                 recon_image_3, recon_text_3, mu_3, logvar_3 = vae(text=text)
                 loss_3 = loss_function(mu_3, logvar_3, recon_image=recon_image_3, image=image, 
                                        recon_text=recon_text_3, text=text, lambda_xy=0., lambda_yx=1.)

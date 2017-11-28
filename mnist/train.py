@@ -61,6 +61,7 @@ def load_checkpoint(file_path, use_cuda=False):
 def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, text=None,
                   lambda_xy=1., lambda_yx=1.):
     image_BCE, text_BCE = 0, 0
+    batch_size = mu.size(0)
 
     if recon_image is not None and image is not None:
         image_BCE = lambda_xy * F.binary_cross_entropy(recon_image, image.view(-1, 784))
@@ -73,7 +74,7 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= args.batch_size * (784 / 3)  # for each pixel
+    KLD /= batch_size * (784 / 3)  # for each pixel
     return image_BCE + text_BCE + KLD
 
 
