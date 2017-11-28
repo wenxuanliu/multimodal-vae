@@ -73,7 +73,7 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
                                                        image.view(-1, 3 * 32 * 32))
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+        text_BCE = lambda_yx * F.mse_loss(recon_text, text)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
