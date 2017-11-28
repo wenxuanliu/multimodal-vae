@@ -13,7 +13,8 @@ import torchtext.vocab as vocab
 
 
 class GloVe(object):
-    def __init__():
+    def __init__(self):
+        super(GloVe, self).__init__()
         self.glove = vocab.GloVe(name='840B', dim=300)
 
     def get_word(self, word):
