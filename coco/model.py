@@ -24,8 +24,8 @@ class MultimodalVAE(nn.Module):
         super(MultimodalVAE, self).__init__()
         self.image_encoder = ImageEncoder(n_latents)
         self.image_decoder = ImageDecoder(n_latents)
-        self.text_encoder = TextEncoder(n_latents, n_characters)
-        self.text_decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
+        self.text_encoder = TextEncoder(n_latents)
+        self.text_decoder = TextDecoder(n_latents, use_cuda=use_cuda)
         self.experts = ProductOfExperts()
 
     def reparametrize(self, mu, logvar):
@@ -60,7 +60,6 @@ class MultimodalVAE(nn.Module):
     def forward(self, image=None, text=None):
         # can't just put nothing
         assert image is not None or text is not None
-        
         if image is not None and text is not None:
             # compute separate gaussians per modality
             image_mu, image_logvar = self.encode_image(image)
@@ -121,8 +120,8 @@ class ImageVAE(nn.Module):
 class TextVAE(nn.Module):
     def __init__(self, n_latents=20, use_cuda=False):
         super(TextVAE, self).__init__()
-        self.encoder = TextEncoder(n_latents, n_characters)
-        self.decoder = TextDecoder(n_latents, n_characters, use_cuda=use_cuda)
+        self.encoder = TextEncoder(n_latents)
+        self.decoder = TextDecoder(n_latents, use_cuda=use_cuda)
         self.n_latents = n_latents
 
     def encode(self, x):
@@ -168,7 +167,7 @@ class ImageEncoder(nn.Module):
             Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 4 * 4, 1024),
+            nn.Linear(512 * 2 * 2, 1024),
             Swish(),
             nn.Dropout(p=0.1),
             nn.Linear(1024, 256),
@@ -181,7 +180,7 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 512 * 4 * 4)
+        x = x.view(-1, 512 * 2 * 2)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -190,7 +189,7 @@ class ImageDecoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageDecoder, self).__init__()
         self.upsample = nn.Sequential(
-            nn.Linear(n_latents, 512 * 4 * 4),
+            nn.Linear(n_latents, 512 * 2 * 2),
             Swish(),
         )
         self.hallucinate = nn.Sequential(
@@ -209,7 +208,7 @@ class ImageDecoder(nn.Module):
     def forward(self, z):
         # the input will be a vector of size |n_latents|
         z = self.upsample(z)
-        z = z.view(-1, 512, 4, 4)
+        z = z.view(-1, 512, 2, 2)
         z = self.hallucinate(z)
         return F.sigmoid(z)
 
@@ -251,15 +250,16 @@ class TextDecoder(nn.Module):
                         (default: 300)
     :param use_cuda: whether to use cuda tensors
     """
-    def __init__(self, n_latents, n_embedding=300, use_cuda=False):
+    def __init__(self, n_latents, n_embedding=300, n_hiddens=200,  use_cuda=False):
         super(TextDecoder, self).__init__()
-        self.z2h = nn.Linear(n_latents, 200)
-        self.gru = nn.GRU(n_embedding + n_latents, 200, 2, dropout=0.1)
-        self.h2o = nn.Linear(n_embedding + n_latents, n_embedding)
+        self.z2h = nn.Linear(n_latents, n_hiddens)
+        self.gru = nn.GRU(n_embedding + n_latents, n_hiddens, 2, dropout=0.1)
+        self.h2o = nn.Linear(n_hiddens + n_latents, n_embedding)
         self.glove = GloVe()
         self.use_cuda = use_cuda
         self.n_latents = n_latents
         self.n_embedding = n_embedding
+        self.n_hiddens = n_hiddens
 
     def forward(self, z):
         n_latents = self.n_latents
@@ -280,10 +280,10 @@ class TextDecoder(nn.Module):
         # look through n_steps and generate characters
         for i in xrange(MAX_WORDS):
             w_out, h = self.step(i, z, w_in, h)
-            words[:, i] = w_out
+            sentence[:, i] = w_out
             w_in = w_out
 
-        return words  # (batch_size, seq_len, ...)
+        return sentence  # (batch_size, seq_len, ...)
 
     def generate(self, z):
         words = self.forward(z)  # shape is (batch_size, seq_len, n_embedding)
@@ -302,6 +302,9 @@ class TextDecoder(nn.Module):
             reshape.append(sentence)
 
         return reshape
+
+    def generate_vector(self, z):
+        return self.forward(z)
 
     def step(self, ix, z, w_in, h):
         # w_in is a (batch, n_embedding)

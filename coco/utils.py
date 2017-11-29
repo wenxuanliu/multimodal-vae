@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import torch
 import random
 from glove import GloVe
 from nltk.tokenize import word_tokenize
@@ -11,6 +12,7 @@ from nltk.tokenize import word_tokenize
 MAX_WORDS = 100  # max number of words in a sentence
 SOS = '<s>'
 EOS = '</s>'
+MAX_WORDS += 2
 
 
 def text_transformer(deterministic=False):
@@ -36,9 +38,11 @@ def text_transformer(deterministic=False):
             words = words[:MAX_WORDS]
         words = [SOS] + words + [EOS]
 
-        embeddings = torch.zeros((MAX_WORDS + 2, 300))
+        embeddings = torch.zeros((MAX_WORDS, 300))
         for i, word in enumerate(words):
-            embeddings[i] = glove.get_word(word)
+            glove_vec = glove.get_word(word)
+            if glove_vec is not None:
+                embeddings[i] = glove_vec
 
         return embeddings
 

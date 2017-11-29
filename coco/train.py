@@ -69,11 +69,11 @@ def loss_function(mu, logvar, recon_image=None, image=None, recon_text=None, tex
     image_BCE, text_BCE = 0, 0
     
     if recon_image is not None and image is not None:
-        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 1 * 32 * 32), 
-                                                       image.view(-1, 1 * 32 * 32))
+        image_BCE = lambda_xy * F.binary_cross_entropy(recon_image.view(-1, 3 * 32 * 32), 
+                                                       image.view(-1, 3 * 32 * 32))
 
     if recon_text is not None and text is not None:
-        text_BCE = lambda_yx * F.nll_loss(recon_text.view(-1, recon_text.size(2)), text.view(-1))
+        text_BCE = lambda_yx * F.mse_loss(recon_text, text)
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -118,13 +118,13 @@ if __name__ == "__main__":
         datasets.CocoCaptions('./data/coco/train2014', 
                               './data/coco/annotations/captions_train2014.json',
                               transform=transform_train,
-                              target_transform=coco_char_tensor),
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
         datasets.CocoCaptions('./data/coco/val2014', 
                               './data/coco/annotations/captions_val2014.json',
                               transform=transform_test,
-                              target_transform=coco_char_tensor),
+                              target_transform=transform_text),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -247,6 +247,8 @@ if __name__ == "__main__":
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models')   
 
+        is_best = True
+
         if is_best:
             sample = Variable(torch.randn(64, args.n_latents))
             if args.cuda:
@@ -256,6 +258,5 @@ if __name__ == "__main__":
             save_image(image_sample.view(64, 3, 32, 32),
                        './results/sample_image.png')
 
-            sample_texts = vae.text_decoder.generate(sample)
-            with open('./results/sample_text.txt', 'w') as fp:
-                fp.writelines(sample_texts)
+            sample_texts = vae.text_decoder.generate_vector(sample).data
+            torch.save(sample_texts, './results/sample_text_vector.pt')

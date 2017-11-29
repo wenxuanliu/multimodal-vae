@@ -48,7 +48,10 @@ def load_checkpoint(file_path, use_cuda=False):
     else:
         checkpoint = torch.load(file_path,
                                 map_location=lambda storage, location: storage)
-    n_latents = checkpoint['n_latents']
+    if 'n_latents' in checkpoint:
+        n_latents = checkpoint['n_latents']
+    else:
+        n_latents = 20
     vae = MultimodalVAE(n_latents=n_latents)
     vae.load_state_dict(checkpoint['state_dict'])
     
