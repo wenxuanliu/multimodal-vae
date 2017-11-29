@@ -232,6 +232,86 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
+# -- Begin InfoVAE section --
+
+
+class InfoVAE(nn.Module):
+    def __init__(self, n_latents=20):
+        super(InfoVAE, self).__init__()
+        self.n_latents = n_latents
+        self.encoder_conv = nn.Sequential(
+            nn.Conv2d(1, 64, 4, 2),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(64, 128, 4, 2),
+            nn.LeakyReLU(0.1, inplace=True),
+        )
+        self.encoder_fc = nn.Sequential(
+            nn.Linear(128 * 5 * 5, 1024),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Linear(1024, n_latents * 2)   
+        )
+        self.decoder_fc = nn.Sequential(
+            nn.Linear(n_latents, 1024),
+            nn.ReLU(True),
+            nn.Linear(1024, 128 * 7 * 7),
+            nn.ReLU(True),
+        )
+        self.decoder_conv = nn.Sequential(
+            nn.ConvTranspose2d(128, 64, 4, 2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64, 1, 4, 2),
+        )
+
+    def encode(self, x):
+        x = self.encoder_conv(x)
+        x = x.view(x.size(0), -1)
+        x = self.encoder_fc(x)
+        n_latents = self.n_latents
+        return x[:, :n_latents], x[:, n_latents:]
+
+    def reparametrize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            return eps.mul(std).add_(mu)
+        else:
+            return mu
+
+    def decode(self, z):
+        z = self.decoder_fc(z)
+        z = z.view(-1, 128, 7, 7)
+        z = self.decoder_conv(z)
+        return F.sigmoid(z)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        return self.decode(z), mu, logvar
+
+
+def compute_kernel(x, y):
+    """Apply Gaussian kernel to the i-th vector of x and j-th vector of y.
+
+    :param x: torch.Tensor (x_size, dim)
+    :param y: torch.Tensor (y_size, dim)
+    """
+    x_size, y_size, dim = x.size(0), y.size(0), x.size(1)
+    tiled_x = x.unsqueeze(1).expand(x_size, y_size, dim)
+    tiled_y = y.unsqueeze(0).expand(x_size, y_size, dim)
+    return torch.exp(-torch.mean(torch.pow(tiled_x - tiled_y, 2), dim=2) / dim)
+
+
+def compute_mmd(x, y):
+    """Compute maximum mean discrepancy."""
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    return torch.mean(x_kernel) + torch.mean(y_kernel) - 2 * torch.mean(xy_kernel)
+
+
+# -- Begin PixelCNN Section -- 
+
+
 class GatedPixelCNN(nn.Module):
     """Improved PixelCNN with blind spot and gated blocks."""
     def __init__(self, data_channels=1, out_dims=256):
