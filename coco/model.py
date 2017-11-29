@@ -353,6 +353,58 @@ class Swish(nn.Module):
         return x * F.sigmoid(x)
 
 
+# ---- Start InfoVAE Section ----
+
+class InfoVAE(nn.Module):
+    def __init__(self, n_latents=20):
+        super(InfoVAE, self).__init__()
+        self.encoder = ImageEncoder(n_latents)
+        self.decoder = ImageDecoder(n_latents)
+        self.n_latents = n_latents
+
+    def encode(self, x):
+        return self.encoder(x)
+
+    def reparametrize(self, mu, logvar):
+        if self.training:
+            std = logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            return eps.mul(std).add_(mu)
+        else:  # return mean during inference
+            return mu
+
+    def decode(self, z):
+        return self.decoder(z)
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparametrize(mu, logvar)
+        return self.decode(z), z
+
+
+def compute_kernel(x, y):
+    """Apply Gaussian kernel to the i-th vector of x and j-th vector of y.
+
+    :param x: torch.Tensor (x_size, dim)
+    :param y: torch.Tensor (y_size, dim)
+    """
+    x_size, y_size, dim = x.size(0), y.size(0), x.size(1)
+    tiled_x = x.unsqueeze(1).expand(x_size, y_size, dim)
+    tiled_y = y.unsqueeze(0).expand(x_size, y_size, dim)
+    return torch.exp(-torch.mean(torch.pow(tiled_x - tiled_y, 2), dim=2) / dim)
+
+
+def compute_mmd(x, y):
+    """Compute maximum mean discrepancy."""
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    return torch.mean(x_kernel) + torch.mean(y_kernel) - 2 * torch.mean(xy_kernel)
+
+
+# ---- Start PixelCNN Section ----
+
+
 class PixelCNN(nn.Module):
     """Vanilla PixelCNN from first Van de Oord paper."""
     def __init__(self, n_blocks=15, data_channels=1, hid_dims=128, out_dims=256):
