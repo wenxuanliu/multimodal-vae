@@ -15,6 +15,7 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from model import InfoVAE
+from model import compute_mmd
 from train import AverageMeter
 
 
@@ -42,16 +43,15 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar):
-    batch_size = x.size(0)
+def loss_function(recon_x, x, z):
+    batch_size = z.size(0)
     BCE = F.binary_cross_entropy(recon_x, x)
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # https://arxiv.org/abs/1312.6114
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 784
-    return BCE + KLD
+    # Compare the generated z with true samples from a standard Gaussian
+    # and compute their MMD distance
+    true_samples = torch.normal(torch.zeros(batch_size, args.n_latents),
+                                torch.ones(batch_size, args.n_latents))
+    MMD = compute_mmd(true_samples, z)
+    return BCE + MMD
 
 
 if __name__ == "__main__":
@@ -100,8 +100,8 @@ if __name__ == "__main__":
             data = Variable(data)
             optimizer.zero_grad()
             
-            recon_data, mu, logvar = vae(data)
-            loss = loss_function(recon_data, data, mu, logvar)
+            recon_data, z = vae(data)
+            loss = loss_function(recon_data, data, z)
             loss_meter.update(loss.data[0], len(data))
 
             loss.backward()
@@ -124,8 +124,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data)
             
-            recon_data, mu, logvar = vae(data)
-            loss = loss_function(recon_data, data, mu, logvar)                
+            recon_data, z = vae(data)
+            loss = loss_function(recon_data, data, z)                
             test_loss += loss.data[0]
 
         test_loss /= len(test_loader)
