@@ -240,26 +240,26 @@ class InfoVAE(nn.Module):
         super(InfoVAE, self).__init__()
         self.n_latents = n_latents
         self.encoder_conv = nn.Sequential(
-            nn.Conv2d(1, 64, 4, 2),
+            nn.Conv2d(1, 64, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.1, inplace=True),
-            nn.Conv2d(64, 128, 4, 2),
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.1, inplace=True),
         )
         self.encoder_fc = nn.Sequential(
-            nn.Linear(128 * 5 * 5, 1024),
+            nn.Linear(128 * 7 * 7, 1024),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Linear(1024, n_latents * 2)   
         )
         self.decoder_fc = nn.Sequential(
             nn.Linear(n_latents, 1024),
             nn.ReLU(True),
-            nn.Linear(1024, 128 * 5 * 5),
+            nn.Linear(1024, 128 * 7 * 7),
             nn.ReLU(True),
         )
         self.decoder_conv = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, 5, 2),
+            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
             nn.ReLU(True),
-            nn.ConvTranspose2d(64, 1, 4, 2),
+            nn.ConvTranspose2d(64, 1, 4, 2, 1, bias=False),
         )
 
     def encode(self, x):
@@ -279,7 +279,7 @@ class InfoVAE(nn.Module):
 
     def decode(self, z):
         z = self.decoder_fc(z)
-        z = z.view(-1, 128, 5, 5)
+        z = z.view(-1, 128, 7, 7)
         z = self.decoder_conv(z)
         return F.sigmoid(z)
 
