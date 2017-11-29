@@ -12,6 +12,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import datasets, transforms
+from torchvision.utils import save_image
 
 from model import InfoVAE
 from train import AverageMeter
@@ -153,4 +154,4 @@ if __name__ == "__main__":
 
         sample = vae.decode(sample).cpu().data
         save_image(sample.view(64, 1, 28, 28),
-                   './results/sample_epoch%d.png' % epoch)
+                   './results/infovae/sample_epoch%d.png' % epoch)
