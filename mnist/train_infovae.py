@@ -145,3 +145,11 @@ if __name__ == "__main__":
             'n_latents': args.n_latents,
             'optimizer' : optimizer.state_dict(),
         }, is_best, folder='./trained_models/infovae')     
+
+        sample = Variable(torch.randn(64, args.n_latents))
+        if args.cuda:
+           sample = sample.cuda()
+
+        sample = vae.decode(sample).cpu().data
+        save_image(sample.view(64, 1, 28, 28),
+                   './results/sample_epoch%d.png' % epoch)
