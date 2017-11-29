@@ -120,7 +120,6 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_data, z = vae(data)
-            # watch out for logvar -- could explode if learning rate is too high.  
             loss = loss_function(recon_data, data, z)
             loss_meter.update(loss.data[0], len(data))            
             loss.backward()

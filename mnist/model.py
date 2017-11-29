@@ -248,7 +248,7 @@ class InfoVAE(nn.Module):
         self.encoder_fc = nn.Sequential(
             nn.Linear(128 * 7 * 7, 1024),
             nn.LeakyReLU(0.1, inplace=True),
-            nn.Linear(1024, n_latents * 2)   
+            nn.Linear(1024, n_latents)   
         )
         self.decoder_fc = nn.Sequential(
             nn.Linear(n_latents, 1024),
@@ -266,16 +266,7 @@ class InfoVAE(nn.Module):
         x = self.encoder_conv(x)
         x = x.view(x.size(0), -1)
         x = self.encoder_fc(x)
-        n_latents = self.n_latents
-        return x[:, :n_latents], x[:, n_latents:]
-
-    def reparametrize(self, mu, logvar):
-        if self.training:
-            std = logvar.mul(0.5).exp_()
-            eps = Variable(std.data.new(std.size()).normal_())
-            return eps.mul(std).add_(mu)
-        else:
-            return mu
+        return x
 
     def decode(self, z):
         z = self.decoder_fc(z)
@@ -284,8 +275,7 @@ class InfoVAE(nn.Module):
         return F.sigmoid(z)
 
     def forward(self, x):
-        mu, logvar = self.encode(x)
-        z = self.reparametrize(mu, logvar)
+        z = self.encode(x)
         return self.decode(z), z
 
 
