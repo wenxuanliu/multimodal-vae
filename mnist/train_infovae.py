@@ -15,7 +15,6 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 
 from model import InfoVAE
-from model import compute_mmd
 from train import AverageMeter
 
 
@@ -45,7 +44,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 def loss_function(recon_x, x, z):
     batch_size = z.size(0)
-    BCE = F.binary_cross_entropy(recon_x, x)
+    NLL = torch.mean(torch.pow(recon_x - x, 2))
     # Compare the generated z with true samples from a standard Gaussian
     # and compute their MMD distance
     true_samples = torch.normal(torch.zeros(batch_size, args.n_latents),
@@ -54,7 +53,27 @@ def loss_function(recon_x, x, z):
         true_samples = true_samples.cuda()
         true_samples = Variable(true_samples)
     MMD = compute_mmd(true_samples, z)
-    return BCE + MMD
+    return NLL + MMD
+
+
+def compute_kernel(x, y):
+    """Apply Gaussian kernel to the i-th vector of x and j-th vector of y.
+
+    :param x: torch.Tensor (x_size, dim)
+    :param y: torch.Tensor (y_size, dim)
+    """
+    x_size, y_size, dim = x.size(0), y.size(0), x.size(1)
+    tiled_x = x.unsqueeze(1).expand(x_size, y_size, dim)
+    tiled_y = y.unsqueeze(0).expand(x_size, y_size, dim)
+    return torch.exp(-torch.mean(torch.pow(tiled_x - tiled_y, 2), dim=2) / float(dim))
+
+
+def compute_mmd(x, y):
+    """Compute maximum mean discrepancy."""
+    x_kernel = compute_kernel(x, x)
+    y_kernel = compute_kernel(y, y)
+    xy_kernel = compute_kernel(x, y)
+    return torch.mean(x_kernel) + torch.mean(y_kernel) - 2 * torch.mean(xy_kernel)
 
 
 if __name__ == "__main__":

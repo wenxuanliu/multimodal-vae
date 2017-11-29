@@ -279,26 +279,6 @@ class InfoVAE(nn.Module):
         return self.decode(z), z
 
 
-def compute_kernel(x, y):
-    """Apply Gaussian kernel to the i-th vector of x and j-th vector of y.
-
-    :param x: torch.Tensor (x_size, dim)
-    :param y: torch.Tensor (y_size, dim)
-    """
-    x_size, y_size, dim = x.size(0), y.size(0), x.size(1)
-    tiled_x = x.unsqueeze(1).expand(x_size, y_size, dim)
-    tiled_y = y.unsqueeze(0).expand(x_size, y_size, dim)
-    return torch.exp(-torch.mean(torch.pow(tiled_x - tiled_y, 2), dim=2) / dim)
-
-
-def compute_mmd(x, y):
-    """Compute maximum mean discrepancy."""
-    x_kernel = compute_kernel(x, x)
-    y_kernel = compute_kernel(y, y)
-    xy_kernel = compute_kernel(x, y)
-    return torch.mean(x_kernel) + torch.mean(y_kernel) - 2 * torch.mean(xy_kernel)
-
-
 # -- Begin PixelCNN Section -- 
 
 
