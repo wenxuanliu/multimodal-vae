@@ -50,6 +50,9 @@ def loss_function(recon_x, x, z):
     # and compute their MMD distance
     true_samples = torch.normal(torch.zeros(batch_size, args.n_latents),
                                 torch.ones(batch_size, args.n_latents))
+    if z.is_cuda:
+        true_samples = true_samples.cuda()
+        true_samples = Variable(true_samples)
     MMD = compute_mmd(true_samples, z)
     return BCE + MMD
 
