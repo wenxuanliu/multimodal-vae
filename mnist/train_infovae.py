@@ -42,6 +42,7 @@ def load_checkpoint(file_path, use_cuda=False):
 
 
 def loss_function(recon_x, x, mu, logvar):
+    batch_size = x.size(0)
     BCE = F.binary_cross_entropy(recon_x, x)
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -98,16 +99,16 @@ if __name__ == "__main__":
             data = Variable(data)
             optimizer.zero_grad()
             
-            recon_x, recon_x, mu, logvar = vae(data)
-            loss = loss_function(recon_x, x, mu, logvar)
-            loss_meter.update(loss.data[0], len(x))
+            recon_data, mu, logvar = vae(data)
+            loss = loss_function(recon_data, data, mu, logvar)
+            loss_meter.update(loss.data[0], len(data))
 
             loss.backward()
             optimizer.step()
 
             if batch_idx % args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(image), len(train_loader.dataset),
+                    epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss_meter.avg))
 
         print('====> Epoch: {}\tLoss: {:.4f}'.format(epoch, loss_meter.avg))
@@ -122,8 +123,8 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data)
             
-            recon_x, recon_x, mu, logvar = vae(data)
-            loss = loss_function(recon_x, x, mu, logvar)                
+            recon_data, mu, logvar = vae(data)
+            loss = loss_function(recon_data, data, mu, logvar)                
             test_loss += loss.data[0]
 
         test_loss /= len(test_loader)

@@ -256,7 +256,7 @@ if __name__ == "__main__":
 
             image_sample = vae.image_decoder(sample).cpu().data
             save_image(image_sample.view(64, 3, 32, 32),
-                       './results/sample_image.png')
+                       './results/sample_image_epoch%d.png' % epoch)
 
             sample_texts = vae.text_decoder.generate_vector(sample).data
             torch.save(sample_texts, './results/sample_text_vector.pt')

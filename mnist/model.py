@@ -253,11 +253,11 @@ class InfoVAE(nn.Module):
         self.decoder_fc = nn.Sequential(
             nn.Linear(n_latents, 1024),
             nn.ReLU(True),
-            nn.Linear(1024, 128 * 7 * 7),
+            nn.Linear(1024, 128 * 5 * 5),
             nn.ReLU(True),
         )
         self.decoder_conv = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, 4, 2),
+            nn.ConvTranspose2d(128, 64, 5, 2),
             nn.ReLU(True),
             nn.ConvTranspose2d(64, 1, 4, 2),
         )
@@ -279,13 +279,13 @@ class InfoVAE(nn.Module):
 
     def decode(self, z):
         z = self.decoder_fc(z)
-        z = z.view(-1, 128, 7, 7)
+        z = z.view(-1, 128, 5, 5)
         z = self.decoder_conv(z)
         return F.sigmoid(z)
 
     def forward(self, x):
         mu, logvar = self.encode(x)
-        z = self.reparameterize(mu, logvar)
+        z = self.reparametrize(mu, logvar)
         return self.decode(z), mu, logvar
 
 
