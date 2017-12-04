@@ -13,29 +13,27 @@ from torchvision import transforms
 
 import datasets
 from train import load_checkpoint
-from utils import max_length, FILL
-from utils import charlist_tensor
 
 
-def compute_nll(model, loader, image_only=False, text_only=False, 
+def compute_nll(model, loader, image_only=False, attrs_only=False, 
                 n_samples=1, use_cuda=False):
-    assert not (image_only and text_only)
+    assert not (image_only and attrs_only)
 
     model.eval()
-    test_image_nll, test_text_nll = 0, 0
+    test_image_nll, test_attrs_nll = 0, 0
 
-    for batch_idx, (image, text) in enumerate(loader):
+    for batch_idx, (image, attrs) in enumerate(loader):
         if use_cuda:
-            image, text = image.cuda(), text.cuda()
+            image, attrs = image.cuda(), attrs.cuda()
         image = Variable(image, volatile=True)
-        text = Variable(text, volatile=True)
+        attrs = Variable(attrs, volatile=True)
 
-        if not image_only and not text_only:
-            _, _, mu, logvar = model(image, text)
+        if not image_only and not attrs_only:
+            _, _, mu, logvar = model(image, attrs)
         elif image_only:
             _, _, mu, logvar = model(image=image)
-        elif text_only:
-            _, _, mu, logvar = model(text=text)
+        elif attrs_only:
+            _, _, mu, logvar = model(attrs=attrs)
 
         batch_size, n_latents = mu.size(0), mu.size(1)
         sample = Variable(torch.randn(n_samples, n_latents))
@@ -50,23 +48,23 @@ def compute_nll(model, loader, image_only=False, text_only=False,
         sample = sample.unsqueeze(0).repeat(batch_size, 1, 1)
         sample = sample.mul(std).add_(mu)
 
-        image_nll, text_nll = 0, 0
+        image_nll, attrs_nll = 0, 0
         for i in xrange(n_samples):
-            recon_image = model.decode_image(sample[:, i])
-            recon_text = model.decode_text(sample[:, i])
+            recon_image = model.image_decoder(sample[:, i])
+            recon_attrs = model.attrs_decoder(sample[:, i])
             image_nll += F.binary_cross_entropy(recon_image, image, size_average=False)
-            text_nll += F.nll_loss(recon_text, text, size_average=False)
+            attrs_nll += F.nll_loss(recon_attrs, attrs, size_average=False)
 
         test_image_nll += (image_nll / n_samples)
-        test_text_nll += (text_nll / n_samples)
+        test_attrs_nll += (attrs_nll / n_samples)
 
         print('Evaluating: [{}/{} ({:.0f}%)]'.format(batch_idx * len(image), len(loader.dataset),
                                                      100. * batch_idx / len(loader)))
 
     test_image_nll /= len(loader.dataset)
-    test_text_nll /= len(loader.dataset)
+    test_attrs_nll /= len(loader.dataset)
 
-    return test_image_nll, test_text_nll
+    return test_image_nll, test_attrs_nll
 
 
 if __name__ == "__main__":
@@ -76,8 +74,8 @@ if __name__ == "__main__":
     # modality options
     parser.add_argument('--image_only', action='store_true', default=False,
                         help='compute NLL of test data using reconstructions from image only')
-    parser.add_argument('--text_only', action='store_true', default=False,
-                        help='compute NLL of test data using reconstructions from text only')
+    parser.add_argument('--attrs_only', action='store_true', default=False,
+                        help='compute NLL of test data using reconstructions from attributes only')
     parser.add_argument('--n_samples', type=int, default=100, 
                         help='number of samples to use to estimate the ELBO')
     parser.add_argument('--cuda', action='store_true', default=False,
@@ -85,23 +83,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
-    assert not (args.image_only and args.text_only), \
-        "--image_only and --text_only cannot both be supplied."
+    assert not (args.image_only and args.attrs_only), \
+        "--image_only and --attrs_only cannot both be supplied."
 
     # loader for MultiMNIST
     loader = torch.utils.data.DataLoader(
-        datasets.MultiMNIST('./data', train=False, download=True,
-                            transform=transforms.ToTensor(),
-                            target_transform=charlist_tensor),
+        datasets.CelebAttributes('./data', partition='test'),
         batch_size=64, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
+    if args.cuda:
+        vae.cuda()
 
-    image_nll, text_nll = compute_nll(vae, loader, use_cuda=args.cuda, n_samples=args.n_samples,
-                                      image_only=args.image_only, text_only=args.text_only)
+    image_nll, attrs_nll = compute_nll(vae, loader, use_cuda=args.cuda, n_samples=args.n_samples,
+                                      image_only=args.image_only, attrs_only=args.attrs_only)
 
     image_nll = image_nll.cpu().data[0]
-    text_nll = text_nll.cpu().data[0]
-    print('\nTest Image NLL: {:.4f}\tTest Text NLL: {:.4f}'.format(image_nll, text_nll))
-    
+    attrs_nll = attrs_nll.cpu().data[0]
+    print('\nTest Image NLL: {:.4f}\tTest Attrs NLL: {:.4f}'.format(image_nll, attrs_nll))
