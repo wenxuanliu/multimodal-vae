@@ -23,8 +23,9 @@ ATTR_TO_IX_DICT = {'Sideburns': 30, 'Black_Hair': 8, 'Wavy_Hair': 33, 'Young': 3
                    'High_Cheekbones': 19, 'No_Beard': 24, 'Eyeglasses': 15, 'Bags_Under_Eyes': 3, 
                    'Wearing_Necklace': 37, 'Wearing_Lipstick': 36, 'Big_Lips': 6, 'Narrow_Eyes': 23, 
                    'Chubby': 13, 'Smiling': 31, 'Bushy_Eyebrows': 12, 'Wearing_Earrings': 34}
+ATTR_IX_TO_KEEP = [4, 5, 8, 9, 11, 12, 15, 17, 18, 20, 21, 22, 26, 28, 31, 32, 33, 35]
 IX_TO_ATTR_DICT = {v:k for k,v in ATTR_TO_IX_DICT.iteritems()}
-N_ATTRS = len(ATTR_TO_IX_DICT)
+N_ATTRS = len(ATTR_IX_TO_KEEP)
 
 
 class CelebAttributes(Dataset):
@@ -37,8 +38,6 @@ class CelebAttributes(Dataset):
         assert partition in VALID_PARTITIONS.keys()
         self.image_paths = load_eval_partition(partition)
         self.attr_data = load_attributes(self.image_paths, partition)
-        dim2keep = [ 4, 5, 8, 9, 11, 12, 15, 17, 18, 20, 21, 22, 26, 28, 31, 32, 33, 35]
-        self.attr_data = self.attr_data[:, dim2keep]
         self.size = int(len(self.image_paths))
 
     def __getitem__(self, index):
@@ -95,7 +94,7 @@ def load_attributes(paths, partition):
                 attr_data.append(attrs)
         attr_data = np.vstack(attr_data).astype(np.int64)
     attr_data = torch.from_numpy(attr_data).float()
-    return attr_data
+    return attr_data[:, ATTR_IX_TO_KEEP]
 
 
 def tensor_to_attributes(tensor):
@@ -107,6 +106,6 @@ def tensor_to_attributes(tensor):
     attrs = []
     n = tensor.size(0)
     for i in xrange(n):
-        attr = IX_TO_ATTR_DICT[tensor[i]]
+        attr = IX_TO_ATTR_DICT[ATTR_IX_TO_KEEP[tensor[i]]]
         attrs.append(attr)
     return attrs
