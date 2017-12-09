@@ -20,6 +20,10 @@ class MultimodalVAE(nn.Module):
         self.attrs_decoder = AttributeDecoder(n_latents)
         self.experts = ProductOfExperts()
 
+    def weight_init(self, mean, std):
+        self.image_encoder.weight_init(mean=mean, std=std)
+        self.image_decoder.weight_init(mean=mean, std=std)
+
     def reparametrize(self, mu, logvar):
         if self.training:
             std = logvar.mul(0.5).exp_()
@@ -61,6 +65,10 @@ class ImageVAE(nn.Module):
 
     def encode(self, x):
         return self.encoder(x)
+ 
+    def weight_init(self, mean, std):
+    	self.encoder.weight_init(mean=mean, std=std)
+        self.decoder.weight_init(mean=mean, std=std)
 
     def reparametrize(self, mu, logvar):
         if self.training:
@@ -109,6 +117,10 @@ class ImageEncoder(nn.Module):
         )
         self.n_latents = n_latents
 
+    def weight_init(self, mean, std):
+        for m in self._modules:
+            normal_init(self._modules[m], mean, std)
+
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
@@ -136,6 +148,10 @@ class ImageDecoder(nn.Module):
             Swish(),
             nn.ConvTranspose2d(32, 3, 4, 2, 1, bias=False),
         )
+
+    def weight_init(self, mean, std):
+        for m in self._modules:
+            normal_init(self._modules[m], mean, std)
 
     def forward(self, z):
         # the input will be a vector of size |n_latents|
@@ -192,6 +208,12 @@ class ProductOfExperts(nn.Module):
         pd_var = 1 / torch.sum(1 / var, dim=0)
         pd_logvar = torch.log(pd_var)
         return pd_mu, pd_logvar
+
+
+def normal_init(m, mean, std):
+    if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
+        m.weight.data.normal_(mean, std)
+        m.bias.data.zero_()
 
 
 def swish(x):

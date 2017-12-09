@@ -96,6 +96,7 @@ if __name__ == "__main__":
         batch_size=args.batch_size, shuffle=True)
 
     vae = ImageVAE(n_latents=args.n_latents)
+    vae.weight_init(mean=0.0, std=0.02)
     if args.cuda:
         vae.cuda()
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)

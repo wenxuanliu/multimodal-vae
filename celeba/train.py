@@ -115,6 +115,7 @@ if __name__ == "__main__":
 
     # load multimodal VAE
     vae = MultimodalVAE(args.n_latents, use_cuda=args.cuda)
+    vae.weight_init(mean=0.0, std=0.02)
     if args.cuda:
         vae.cuda()
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
