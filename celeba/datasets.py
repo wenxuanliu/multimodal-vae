@@ -92,7 +92,7 @@ def load_attributes(paths, partition):
                     attrs[attrs < 0] = 0
                 attr_data.append(attrs)
         attr_data = np.vstack(attr_data).astype(np.int64)
-    attr_data = torch.from_numpy(attr_data)
+    attr_data = torch.from_numpy(attr_data).float()
     return attr_data
 
 

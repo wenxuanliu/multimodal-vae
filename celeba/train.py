@@ -131,7 +131,7 @@ if __name__ == "__main__":
                 image, attrs = image.cuda(), attrs.cuda()
             image, attrs = Variable(image), Variable(attrs)
             optimizer.zero_grad()
-            
+    
             # for each batch, use 3 types of examples (joint, image-only, and attrs-only)
             # this way, we can hope to reconstruct both modalities from one
             recon_image_1, recon_attrs_1, mu_1, logvar_1 = vae(image=image, attrs=attrs)

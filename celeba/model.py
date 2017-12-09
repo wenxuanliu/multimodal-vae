@@ -33,9 +33,9 @@ class MultimodalVAE(nn.Module):
         if image is not None and attrs is not None:
             # compute separate gaussians per modality
             image_mu, image_logvar = self.image_encoder(image)
-            attrs_mu, attrs_logvar = self.attrs_encoder(text)
-            mu = torch.stack((image_mu, text_mu), dim=0)
-            logvar = torch.stack((image_logvar, text_logvar), dim=0)
+            attrs_mu, attrs_logvar = self.attrs_encoder(attrs)
+            mu = torch.stack((image_mu, attrs_mu), dim=0)
+            logvar = torch.stack((image_logvar, attrs_logvar), dim=0)
         elif image is not None:
             mu, logvar = self.image_encoder(image)
             mu, logvar = mu.unsqueeze(0), logvar.unsqueeze(0)
@@ -49,7 +49,7 @@ class MultimodalVAE(nn.Module):
         # reconstruct inputs based on that gaussian
         image_recon = self.image_decoder(z)
         attrs_recon = self.attrs_decoder(z)
-        return image_recon, attrs_recon
+        return image_recon, attrs_recon, mu, logvar
 
 
 class ImageVAE(nn.Module):
