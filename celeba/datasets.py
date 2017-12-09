@@ -105,7 +105,10 @@ def tensor_to_attributes(tensor):
     """
     attrs = []
     n = tensor.size(0)
+    tensor = torch.round(tensor)
     for i in xrange(n):
-        attr = IX_TO_ATTR_DICT[ATTR_IX_TO_KEEP[tensor[i]]]
-        attrs.append(attr)
+        if tensor[i] > 0.5:
+            attr = IX_TO_ATTR_DICT[ATTR_IX_TO_KEEP[i]]
+            attrs.append(attr)
     return attrs
+

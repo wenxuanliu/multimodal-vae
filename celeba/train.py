@@ -227,7 +227,7 @@ if __name__ == "__main__":
         save_image(image_sample.view(64, 3, 64, 64),
                    './results/sample_image_epoch%d.png' % epoch)
         # reconstruct attributes
-        attrs_sample = vae.attrs_decoder.generate(sample).cpu().data.long()
+        attrs_sample = vae.attrs_decoder(sample).cpu().data
         sample_attrs = []
         for i in xrange(sample.size(0)):
             attrs = datasets.tensor_to_attributes(attrs_sample[i])
