@@ -37,6 +37,8 @@ class CelebAttributes(Dataset):
         assert partition in VALID_PARTITIONS.keys()
         self.image_paths = load_eval_partition(partition)
         self.attr_data = load_attributes(self.image_paths, partition)
+        dim2keep = [ 4, 5, 8, 9, 11, 12, 15, 17, 18, 20, 21, 22, 26, 28, 31, 32, 33, 35]
+        self.attr_data = self.attr_data[:, dim2keep]
         self.size = int(len(self.image_paths))
 
     def __getitem__(self, index):
