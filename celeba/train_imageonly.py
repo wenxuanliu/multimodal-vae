@@ -39,16 +39,16 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
+def loss_function(recon_x, x, mu, logvar):
     batch_size = mu.size(0)    
-    BCE = F.binary_cross_entropy(recon_x.view(-1, 1 * 64 * 64), 
-                                 x.view(-1, 1 * 64 * 64))
+    BCE = F.binary_cross_entropy(recon_x.view(-1, 3 * 64 * 64), 
+                                 x.view(-1, 3 * 64 * 64))
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD = KLD / batch_size * kl_lambda
+    KLD /= batch_size * 1000
     return BCE + KLD
 
 
@@ -82,11 +82,17 @@ if __name__ == "__main__":
     if not os.path.isdir('./results/image_only'):
         os.makedirs('./results/image_only')
 
+    preprocess_data = transforms.Compose([transforms.Scale(64),
+                                          transforms.CenterCrop(64),
+                                          transforms.ToTensor()])
+
     train_loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='train'),
+        datasets.CelebAttributes(partition='train', 
+                                 image_transform=preprocess_data),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='val'),
+        datasets.CelebAttributes(partition='val',
+                                 image_transform=preprocess_data),
         batch_size=args.batch_size, shuffle=True)
 
     vae = ImageVAE(n_latents=args.n_latents)
@@ -104,7 +110,7 @@ if __name__ == "__main__":
                 data = data.cuda()
             optimizer.zero_grad()
             recon_data, mu, logvar = vae(data)
-            loss = loss_function(recon_data, data, mu, logvar, kl_lambda=kl_lambda)
+            loss = loss_function(recon_data, data, mu, logvar)
             loss.backward()
             loss_meter.update(loss.data[0], len(data))
             optimizer.step()
@@ -124,7 +130,7 @@ if __name__ == "__main__":
                 data = data.cuda()
             data = Variable(data, volatile=True)
             recon_data, mu, logvar = vae(data)
-            test_loss += loss_function(recon_data, data, mu, logvar, kl_lambda=kl_lambda).data[0]
+            test_loss += loss_function(recon_data, data, mu, logvar).data[0]
 
         test_loss /= len(test_loader)
         print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -150,5 +156,5 @@ if __name__ == "__main__":
            sample = sample.cuda()
 
         sample = vae.decode(sample).cpu()
-        save_image(sample.data.view(64, 1, 64, 64),
+        save_image(sample.data.view(64, 3, 64, 64),
                    './results/image_only/sample_image_epoch%d.png' % epoch)

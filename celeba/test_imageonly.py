@@ -28,9 +28,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    preprocess_data = transforms.Compose([transforms.Scale(64),
+                                          transforms.CenterCrop(64),
+                                          transforms.ToTensor()])
+
     loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='test'),
-        batch_size=args.batch_size, shuffle=True)
+        datasets.CelebAttributes(partition='test',
+                                 image_transform=preprocess_data),
+        batch_size=128, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
@@ -43,7 +48,8 @@ if __name__ == "__main__":
             image = image.cuda()
         image = Variable(image, volatile=True)
         recon_image, mu, logvar = vae(image)
-        loss += loss_function(recon_image, image, mu, logvar, kl_lambda=1).data[0]
+        loss += loss_function(recon_image, image, mu, logvar).data[0]
 
     loss /= len(loader)
     print('====> Test Epoch\tLoss: {:.4f}'.format(loss))
+

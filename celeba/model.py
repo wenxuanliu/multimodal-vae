@@ -89,7 +89,7 @@ class ImageEncoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageEncoder, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 32, 4, 2, 1, bias=False),
+            nn.Conv2d(3, 32, 4, 2, 1, bias=False),
             Swish(),
             nn.Conv2d(32, 64, 4, 2, 1, bias=False),
             nn.BatchNorm2d(64),
@@ -97,25 +97,22 @@ class ImageEncoder(nn.Module):
             nn.Conv2d(64, 128, 4, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             Swish(),
-            nn.Conv2d(128, 256, 4, 2, 0, bias=False),
+            nn.Conv2d(128, 256, 4, 1, 0, bias=False),
             nn.BatchNorm2d(256),
             Swish(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(256 * 2 * 2, 400),
+            nn.Linear(256 * 5 * 5, 1024),
             Swish(),
             nn.Dropout(p=0.1),
-            nn.Linear(400, 200),
-            Swish(),
-            nn.Dropout(p=0.1),
-            nn.Linear(200, n_latents * 2)
+            nn.Linear(1024, n_latents * 2)
         )
         self.n_latents = n_latents
 
     def forward(self, x):
         n_latents = self.n_latents
         x = self.features(x)
-        x = x.view(-1, 256 * 2 * 2)
+        x = x.view(-1, 256 * 5 * 5)
         x = self.classifier(x)
         return x[:, :n_latents], x[:, n_latents:]
 
@@ -124,26 +121,26 @@ class ImageDecoder(nn.Module):
     def __init__(self, n_latents):
         super(ImageDecoder, self).__init__()
         self.upsample = nn.Sequential(
-            nn.Linear(n_latents, 256 * 2 * 2),
+            nn.Linear(n_latents, 256 * 5 * 5),
             Swish(),
         )
         self.hallucinate = nn.Sequential(
-            nn.ConvTranspose2d(256, 128, 4, 2, 0, bias=False),
+            nn.ConvTranspose2d(256, 128, 4, 1, 0, bias=False),
             nn.BatchNorm2d(128),
             Swish(),
             nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
             nn.BatchNorm2d(64),
             Swish(),
-            nn.ConvTranspose2d(64, 32, 5, 2, 1, bias=False),
+            nn.ConvTranspose2d(64, 32, 4, 2, 1, bias=False),
             nn.BatchNorm2d(32),
             Swish(),
-            nn.ConvTranspose2d(32, 1, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(32, 3, 4, 2, 1, bias=False),
         )
 
     def forward(self, z):
         # the input will be a vector of size |n_latents|
         z = self.upsample(z)
-        z = z.view(-1, 256, 2, 2)
+        z = z.view(-1, 256, 5, 5)
         z = self.hallucinate(z)
         return F.sigmoid(z)
 

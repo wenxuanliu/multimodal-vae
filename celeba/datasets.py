@@ -36,8 +36,8 @@ class CelebAttributes(Dataset):
         
         assert partition in VALID_PARTITIONS.keys()
         self.image_paths = load_eval_partition(partition)
-        self.attr_data = load_attributes(image_paths)
-        self.size = len(self.image_paths)
+        self.attr_data = load_attributes(self.image_paths, partition)
+        self.size = int(len(self.image_paths))
 
     def __getitem__(self, index):
         """
@@ -46,10 +46,8 @@ class CelebAttributes(Dataset):
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
-        image_path = self.image_paths[index]
+        image_path = os.path.join('./data/img_align_celeba/', self.image_paths[index])
         attr = self.attr_data[index]
-        # convert attr to torch
-        attr = torch.from_numpy(attr)
 
         # open PIL Image
         image = Image.open(image_path)
@@ -64,7 +62,7 @@ class CelebAttributes(Dataset):
         return image, attr
 
     def __len__(self):
-        self.size
+        return self.size
 
 
 def load_eval_partition(partition):
@@ -79,17 +77,22 @@ def load_eval_partition(partition):
     return eval_data
 
 
-def load_attributes(paths):
-    attr_data = []
-    with open('./data/Anno/list_attr_celeba.txt') as fp:
-        rows = fp.readlines()
-        for row in rows[2:]:
-            row = row.strip().split()
-            path, attrs = row[0], row[1:]
-            if path in paths:
-                attrs = np.array(attrs).astype(int)
-                attrs[attrs < 0] = 0
+def load_attributes(paths, partition):
+    if os.path.isfile('./data/Anno/attr_%s.npy' % partition):
+        attr_data = np.load('./data/Anno/attr_%s.npy' % partition)
+    else:
+        attr_data = []
+        with open('./data/Anno/list_attr_celeba.txt') as fp:
+            rows = fp.readlines()
+            for ix, row in enumerate(rows[2:]):
+                row = row.strip().split()
+                path, attrs = row[0], row[1:]
+                if path in paths:
+                    attrs = np.array(attrs).astype(int)
+                    attrs[attrs < 0] = 0
                 attr_data.append(attrs)
+        attr_data = np.vstack(attr_data).astype(np.int64)
+    attr_data = torch.from_numpy(attr_data)
     return attr_data
 
 
