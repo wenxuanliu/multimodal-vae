@@ -67,10 +67,9 @@ def loss_function(mu, logvar, recon_x=None, x=None, recon_y=None, y=None,
                                        x.view(-1, 3 * 64 * 64))
 
     if recon_y is not None and y is not None:
-        import pdb; pdb.set_trace()
         y_BCE = 0
         for i in xrange(y.size(1)):
-            y_BCE += F.binary_cross_entropy(recon_y, y)
+            y_BCE += F.binary_cross_entropy(recon_y[:, i], y[:, i])
         y_BCE /= y.size(1)
 
     # see Appendix B from VAE paper:
