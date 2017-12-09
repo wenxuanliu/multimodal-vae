@@ -39,7 +39,7 @@ def load_checkpoint(file_path, use_cuda=False):
     return vae
 
 
-def loss_function(recon_x, x, mu, logvar):
+def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     batch_size = mu.size(0)    
     BCE = F.binary_cross_entropy(recon_x.view(-1, 3 * 64 * 64), 
                                  x.view(-1, 3 * 64 * 64))
@@ -48,14 +48,14 @@ def loss_function(recon_x, x, mu, logvar):
     # https://arxiv.org/abs/1312.6114
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    KLD /= batch_size * 1000
+    KLD = KLD / batch_size * kl_lambda
     return BCE + KLD
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--n_latents', type=int, default=20,
+    parser.add_argument('--n_latents', type=int, default=100,
                         help='size of the latent embedding')
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 128)')

@@ -28,8 +28,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    preprocess_data = transforms.Compose([transforms.Scale(64),
+                                          transforms.CenterCrop(64),
+                                          transforms.ToTensor()])
+
     loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='test'),
+        datasets.CelebAttributes(partition='test',
+                                 image_transform=preprocess_data),
         batch_size=args.batch_size, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)

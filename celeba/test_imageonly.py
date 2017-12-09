@@ -48,7 +48,8 @@ if __name__ == "__main__":
             image = image.cuda()
         image = Variable(image, volatile=True)
         recon_image, mu, logvar = vae(image)
-        loss += loss_function(recon_image, image, mu, logvar).data[0]
+        loss += loss_function(recon_image, image, mu, logvar, 
+                              kl_lambda=1.).data[0]
 
     loss /= len(loader)
     print('====> Test Epoch\tLoss: {:.4f}'.format(loss))

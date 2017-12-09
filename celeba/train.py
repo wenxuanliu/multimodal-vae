@@ -63,8 +63,8 @@ def loss_function(mu, logvar, recon_x=None, x=None, recon_y=None, y=None,
     x_BCE, y_BCE = 0, 0
     
     if recon_x is not None and x is not None:
-        x_BCE = F.binary_cross_entropy(recon_x.view(-1, 1 * 64 * 64), 
-                                       x.view(-1, 1 * 64 * 64))
+        x_BCE = F.binary_cross_entropy(recon_x.view(-1, 3 * 64 * 64), 
+                                       x.view(-1, 3 * 64 * 64))
 
     if recon_y is not None and y is not None:
         y_BCE = 0
@@ -99,12 +99,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.cuda = args.cuda and torch.cuda.is_available()
 
+    preprocess_data = transforms.Compose([transforms.Scale(64),
+                                          transforms.CenterCrop(64),
+                                          transforms.ToTensor()])
+
     # create loaders for CelebA
     train_loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='train'),
+        datasets.CelebAttributes(partition='train',
+                                 image_transform=preprocess_data),
         batch_size=args.batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(
-        datasets.CelebAttributes('./data', partition='val'),
+        datasets.CelebAttributes(partition='val',
+                                 image_transform=preprocess_data),
         batch_size=args.batch_size, shuffle=True)
 
     # load multimodal VAE
@@ -133,14 +139,11 @@ if __name__ == "__main__":
             recon_image_3, recon_attrs_3, mu_3, logvar_3 = vae(attrs=attrs)
             
             loss_1 = loss_function(mu_1, logvar_1, recon_x=recon_image_1, x=image, 
-                                   recon_y=recon_attrs_1, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_x=1., lambda_y=1.)
+                                   recon_y=recon_attrs_1, y=attrs)
             loss_2 = loss_function(mu_2, logvar_2, recon_x=recon_image_2, x=image, 
-                                   recon_y=recon_attrs_2, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_xy=1., lambda_yx=0.5)
+                                   recon_y=recon_attrs_2, y=attrs)
             loss_3 = loss_function(mu_3, logvar_3, recon_x=recon_image_3, x=image, 
-                                   recon_y=recon_attrs_3, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_xy=0., lambda_yx=1.)
+                                   recon_y=recon_attrs_3, y=attrs)
             loss = loss_1 + loss_2 + loss_3
             loss.backward()
             
@@ -176,14 +179,11 @@ if __name__ == "__main__":
             recon_image_3, recon_attrs_3, mu_3, logvar_3 = vae(attrs=attrs)
             
             loss_1 = loss_function(mu_1, logvar_1, recon_x=recon_image_1, x=image, 
-                                   recon_y=recon_attrs_1, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_x=1., lambda_y=1.)
+                                   recon_y=recon_attrs_1, y=attrs)
             loss_2 = loss_function(mu_2, logvar_2, recon_x=recon_image_2, x=image, 
-                                   recon_y=recon_attrs_2, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_xy=1., lambda_yx=0.5)
+                                   recon_y=recon_attrs_2, y=attrs)
             loss_3 = loss_function(mu_3, logvar_3, recon_x=recon_image_3, x=image, 
-                                   recon_y=recon_attrs_3, y=attrs, kl_lambda=kl_lambda, 
-                                   lambda_xy=0., lambda_yx=1.)
+                                   recon_y=recon_attrs_3, y=attrs)
             test_joint_loss += loss_1.data[0]
             test_image_loss += loss_2.data[0]
             test_attrs_loss += loss_3.data[0]
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
         # reconstruct image
         image_sample = vae.image_decoder(sample).cpu().data
-        save_image(image_sample.view(64, 1, 64, 64),
+        save_image(image_sample.view(64, 3, 64, 64),
                    './results/sample_image_epoch%d.png' % epoch)
         # reconstruct attributes
         attrs_sample = vae.attrs_decoder.generate(sample).cpu().data.long()
