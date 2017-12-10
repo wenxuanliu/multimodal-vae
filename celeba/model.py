@@ -68,7 +68,7 @@ class ImageVAE(nn.Module):
         return self.encoder(x)
  
     def weight_init(self, mean, std):
-    	self.encoder.weight_init(mean=mean, std=std)
+        self.encoder.weight_init(mean=mean, std=std)
         self.decoder.weight_init(mean=mean, std=std)
 
     def reparametrize(self, mu, logvar):

@@ -35,7 +35,7 @@ if __name__ == "__main__":
     loader = torch.utils.data.DataLoader(
         datasets.CelebAttributes(partition='test',
                                  image_transform=preprocess_data),
-        batch_size=args.batch_size, shuffle=True)
+        batch_size=128, shuffle=True)
 
     vae = load_checkpoint(args.model_path, use_cuda=args.cuda)
     vae.eval()
