@@ -57,11 +57,8 @@ class Image2Latex(Dataset):
         self.size = len(self.ids)
 
     def __getitem__(self, index):
-        render_path = os.path.join('./data/formula_images/%s.png' % self.render_ids[index])
-        render = Image.open(render_path)
-        # render = alpha_composite_with_color(render.convert('RGBA'))
-        render = render.convert('RGBA') 
-        render = render.convert('L')
+        render_path = os.path.join('./data/formula_images_processed/%s.png' % self.render_ids[index])
+        render = Image.open(render_path).convert('L')
 
         if self.render_transform is not None:
             render = self.render_transform(render)
