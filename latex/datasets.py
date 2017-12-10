@@ -14,10 +14,17 @@ import torchvision.datasets as dset
 from torch.utils.data.dataset import Dataset
 
 VALID_PARTITIONS = {'train': 'im2latex_train.lst', 
-                    'val': 'im2latex_val.lst', 
+                    'val': 'im2latex_validate.lst', 
                     'test': 'im2latex_test.lst'}
 
-CHAR_VOCAB = gen_vocab()
+CHAR_VOCAB = ['\t', '\n', '\r', ' ', '!', '"', '#', '$', '%', '&', "'", '(', ')', '*', '+', 
+              ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', 
+              '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 
+              'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', 
+              '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 
+              'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '{', 
+              '|', '}', '~', '\x7f', '\x95', '\xa0', '\xa1', '\xa2', '\xa4', '\xa5', '\xa7', 
+              '\xaa', '\xab', '\xca', '\xe7'] 
 N_CHAR_VOCAB = len(CHAR_VOCAB)
 MAX_LENGTH = 1000  # 1000 characters is the most to generate
 SOS = N_CHAR_VOCAB
@@ -41,7 +48,7 @@ class Image2Latex(Dataset):
             for row in data:
                 row_elements = row.split(' ')
                 row_id = int(row_elements[0])
-                row_render_id = int(row_elements[1])
+                row_render_id = row_elements[1]
                 row_ids.append(row_id)
                 row_render_ids.append(row_render_id)
 
@@ -50,9 +57,10 @@ class Image2Latex(Dataset):
         self.size = len(self.ids)
 
     def __getitem__(self, index):
-        render_path = os.path.join('./data/%s.png' % self.render_ids[index])
+        render_path = os.path.join('./data/formula_images/%s.png' % self.render_ids[index])
         render = Image.open(render_path)
-        render = alpha_composite_with_color(render.convert('RGBA'))
+        # render = alpha_composite_with_color(render.convert('RGBA'))
+        render = render.convert('RGBA') 
         render = render.convert('L')
 
         if self.render_transform is not None:
@@ -62,7 +70,6 @@ class Image2Latex(Dataset):
 
         if self.formula_transform is not None:
             formula = self.formula_transform(formula)
-
         return render, formula
 
     def __len__(self):
@@ -98,7 +105,7 @@ def string_to_tensor(string):
     return tensor
 
 
-def tensor_to_stirng(tensor):
+def tensor_to_string(tensor):
     """Turn a string into a Tensor.
 
     :param tensor: torch.Tensor object

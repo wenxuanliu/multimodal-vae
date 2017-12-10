@@ -8,8 +8,8 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 
-from utils import CHAR_VOCAB, N_CHAR_VOCAB, MAX_LENGTH
-from utils import SOS, FILL
+from datasets import CHAR_VOCAB, N_CHAR_VOCAB, MAX_LENGTH
+from datasets import SOS, FILL
 
 
 class MultimodalVAE(nn.Module):

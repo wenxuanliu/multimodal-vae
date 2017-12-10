@@ -16,7 +16,6 @@ from torchvision.utils import save_image
 
 import datasets
 from model import RenderVAE
-from train import loss_function, AverageMeter
 
 
 def save_checkpoint(state, is_best, folder='./', 
@@ -51,6 +50,24 @@ def loss_function(recon_x, x, mu, logvar, kl_lambda=1e-3):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     KLD = KLD / batch_size * kl_lambda
     return BCE + KLD
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 
 if __name__ == "__main__":
@@ -109,6 +126,7 @@ if __name__ == "__main__":
         vae.train()
         loss_meter = AverageMeter()
         for batch_idx, (data, _) in enumerate(train_loader):
+            import pdb; pdb.set_trace()
             data = Variable(data)
             if args.cuda:
                 data = data.cuda()
