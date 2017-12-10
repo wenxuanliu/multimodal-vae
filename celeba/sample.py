@@ -12,6 +12,7 @@ from torchvision.utils import save_image
 from train import load_checkpoint
 from datasets import ATTR_IX_TO_KEEP, N_ATTRS
 from datasets import ATTR_TO_IX_DICT, IX_TO_ATTR_DICT
+from datasets import tensor_to_attributes
 
 
 def fetch_celeba_image(attr_str):
@@ -108,7 +109,7 @@ if __name__ == "__main__":
         std = logvar.mul(0.5).exp_()
 
     # sample from uniform gaussian
-    n_latents = vae.n_latents
+    n_latents = 100
     sample = Variable(torch.randn(args.n_samples, n_latents))
     if args.cuda:
         sample = sample.cuda()
@@ -132,7 +133,7 @@ if __name__ == "__main__":
     # save text samples to filesystem
     sample_attrs = []
     for i in xrange(attrs_recon.size(0)):
-        attrs = datasets.tensor_to_attributes(attrs_recon[i])
+        attrs = tensor_to_attributes(attrs_recon[i])
         sample_attrs.append(','.join(attrs))
 
     with open('./results/sample_attrs.txt', 'w') as fp:

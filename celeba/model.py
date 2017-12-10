@@ -19,6 +19,7 @@ class MultimodalVAE(nn.Module):
         self.attrs_encoder = AttributeEncoder(n_latents)
         self.attrs_decoder = AttributeDecoder(n_latents)
         self.experts = ProductOfExperts()
+        self.n_latents = n_latents
 
     def weight_init(self, mean, std):
         self.image_encoder.weight_init(mean=mean, std=std)
